@@ -1,0 +1,14 @@
+*Note: Before you start doing it, tell me what you understand after that ask to me of your questions and you must wait for my confirmation.
+*Note: You must wait for my confirmation.	
+
+**Important: Create a did.md file and record all your actions in it. Read this file every time before you start working, so you can understand what you have done so far. If the file already exists, you need to add your actions to it. Basically, this file serves as the memory of your past work to prevent duplicate tasks and ensure you continue building on previous efforts.
+
+Prompt: `
+map me whole world nahi dikhana he, only india ko dikhana he jo shape file me he wahi, ye kaam mene ek project me kiya he use check karo 'india_map_instruments' isme map ko crop kiya he, waisa hi crop karke dikhao flask app me.
+
+`
+
+
+
+
+	

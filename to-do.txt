@@ -1,0 +1,16 @@
+*Note: Before you start doing it, tell me what you understand after that ask to me of your questions and you must wait for my confirmation.
+*Note: You must wait for my confirmation.	
+
+**Important: Create a did.md file and record all your actions in it. Read this file every time before you start working, so you can understand what you have done so far. If the file already exists, you need to add your actions to it. Basically, this file serves as the memory of your past work to prevent duplicate tasks and ensure you continue building on previous efforts.
+
+Prompt: `
+check 'pms4_laravel' > did.md to understand api for project data.
+based on that modify python app.
+pms4_laravel developing an api to share project > sites > instrument_assignments & instruments data, we will use this data to display icons on the map over click on that icon the full information should be display, use pop-up modal for this.
+
+`
+
+
+
+
+	
