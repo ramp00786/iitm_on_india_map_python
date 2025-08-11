@@ -581,13 +581,47 @@ class IndiaInteractiveMap {
         }
         
         // Populate modal content
-        document.getElementById('modal-instrument-name').textContent = assignment.instrument_name || 'Instrument';
+        document.getElementById('modal-instrument-name').textContent = `${assignment.instrument_name || 'Instrument'} - ${site.site_name}`;
+        document.getElementById('modal-instrument-type').textContent = assignment.instrument_name || 'Not specified';
         document.getElementById('modal-instrument-site').textContent = site.site_name;
         document.getElementById('modal-instrument-project').textContent = project.name;
         document.getElementById('modal-instrument-id').textContent = assignment.id || 'N/A';
         document.getElementById('modal-instrument-status').textContent = assignment.status || 'Unknown';
         document.getElementById('modal-instrument-coordinates').textContent = `${site.latitude}, ${site.longitude}`;
         document.getElementById('modal-instrument-location').textContent = site.place || 'Not specified';
+        document.getElementById('modal-instrument-project-description').textContent = project.description || 'No description available';
+        
+        // Set banner image if available (use site banner for instrument)
+        const bannerImg = document.getElementById('modal-instrument-banner');
+        if (site.banner && site.banner !== 'null') {
+            bannerImg.src = site.banner;
+            bannerImg.style.display = 'block';
+        } else {
+            bannerImg.style.display = 'none';
+        }
+        
+        // Handle gallery images (use site gallery for instrument) - Same style as site modal
+        const galleryContainer = document.getElementById('modal-instrument-gallery');
+        if (site.gallery && Array.isArray(site.gallery) && site.gallery.length > 0) {
+            // Handle array format from updated API (same as site modal)
+            console.log(`📸 Processing ${site.gallery.length} gallery images for instrument at ${site.site_name}`);
+            galleryContainer.innerHTML = site.gallery.map(img => 
+                `<img src="${img}" class="gallery-thumb" onclick="window.open('${img}', '_blank')" />`
+            ).join('');
+            galleryContainer.style.display = site.gallery.length > 0 ? 'flex' : 'none';
+        } else if (site.gallery && typeof site.gallery === 'string' && site.gallery !== 'null') {
+            // Handle legacy space-separated string format (fallback) - Same as site modal
+            console.log(`📸 Processing legacy gallery string for instrument at ${site.site_name}`);
+            const images = site.gallery.split(' ').filter(img => img.trim() !== '');
+            galleryContainer.innerHTML = images.map(img => 
+                `<img src="${img.trim()}" class="gallery-thumb" onclick="window.open('${img.trim()}', '_blank')" />`
+            ).join('');
+            galleryContainer.style.display = images.length > 0 ? 'flex' : 'none';
+        } else {
+            console.log(`📸 No gallery images for instrument at ${site.site_name}`);
+            galleryContainer.innerHTML = '';
+            galleryContainer.style.display = 'none';
+        }
         
         // Show modal
         modal.style.display = 'flex';
@@ -643,15 +677,20 @@ class IndiaInteractiveMap {
     createInstrumentModal() {
         const modalHtml = `
             <div id="instrument-modal" class="modal" style="display: none;">
-                <div class="modal-content modal-md">
+                <div class="modal-content modal-lg">
                     <div class="modal-header">
                         <h4 class="modal-title" id="modal-instrument-name">Instrument Details</h4>
                         <button type="button" class="close-btn" onclick="document.getElementById('instrument-modal').style.display='none'">&times;</button>
                     </div>
                     <div class="modal-body">
                         <div class="instrument-details">
+                            <img id="modal-instrument-banner" class="site-banner" style="display: none;" />
+                            
                             <div class="detail-group">
                                 <h5>Instrument Information</h5>
+                                <div class="detail-item">
+                                    <strong>Instrument Name:</strong> <span id="modal-instrument-type"></span>
+                                </div>
                                 <div class="detail-item">
                                     <strong>Assignment ID:</strong> <span id="modal-instrument-id"></span>
                                 </div>
@@ -661,9 +700,9 @@ class IndiaInteractiveMap {
                             </div>
                             
                             <div class="detail-group">
-                                <h5>Location Information</h5>
+                                <h5>Site Information</h5>
                                 <div class="detail-item">
-                                    <strong>Site:</strong> <span id="modal-instrument-site"></span>
+                                    <strong>Site Name:</strong> <span id="modal-instrument-site"></span>
                                 </div>
                                 <div class="detail-item">
                                     <strong>Project:</strong> <span id="modal-instrument-project"></span>
@@ -674,6 +713,16 @@ class IndiaInteractiveMap {
                                 <div class="detail-item">
                                     <strong>Coordinates:</strong> <span id="modal-instrument-coordinates"></span>
                                 </div>
+                            </div>
+                            
+                            <div class="detail-group">
+                                <h5>Project Description</h5>
+                                <p id="modal-instrument-project-description"></p>
+                            </div>
+                            
+                            <div class="detail-group">
+                                <h5>Gallery</h5>
+                                <div id="modal-instrument-gallery" class="site-gallery"></div>
                             </div>
                         </div>
                     </div>
