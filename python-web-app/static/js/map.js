@@ -238,9 +238,47 @@ class IndiaInteractiveMap {
             console.log('📊 Received project data:', projectData);
             
             // Handle Laravel API format vs demo data format
-            if (projectData.sites && projectData.instruments) {
-                // Laravel API format: {sites: [...], instruments: [...]}
+            if (Array.isArray(projectData) && projectData[0] && projectData[0].sites) {
+                // Laravel API format: Array of projects with sites containing instrument_assignments
                 console.log('🔍 Processing Laravel API data format...');
+                
+                // Extract all sites and instruments from all projects
+                let allSites = [];
+                let allInstruments = [];
+                
+                projectData.forEach(project => {
+                    if (project.sites) {
+                        project.sites.forEach(site => {
+                            // Add project reference to site
+                            site.project = project;
+                            allSites.push(site);
+                            
+                            // Extract instruments from site.instrument_assignments
+                            if (site.instrument_assignments && site.instrument_assignments.length > 0) {
+                                site.instrument_assignments.forEach(assignment => {
+                                    // Add site and project references to assignment
+                                    assignment.site = site;
+                                    assignment.project = project;
+                                    allInstruments.push(assignment);
+                                });
+                            }
+                        });
+                    }
+                });
+                
+                this.siteCount = allSites.length;
+                this.instrumentCount = allInstruments.length;
+                this.projectCount = projectData.length;
+                
+                console.log(`✅ Processed Laravel data: ${this.projectCount} projects, ${this.siteCount} sites, ${this.instrumentCount} instruments`);
+                
+                // Create separate layers for sites and instruments
+                this.createSitesLayerFromLaravelData(allSites);
+                this.createInstrumentsLayerFromLaravelData(allInstruments);
+                
+            } else if (projectData.sites && projectData.instruments) {
+                // Laravel API format: {sites: [...], instruments: [...]} (alternative format)
+                console.log('🔍 Processing Laravel API data format (alternative)...');
                 
                 this.siteCount = projectData.sites.length;
                 this.instrumentCount = projectData.instruments.length;
@@ -548,9 +586,13 @@ class IndiaInteractiveMap {
         };
         const statusColor = statusColors[instrument.status || instrument.instrument?.status] || '#6b7280';
         
-        // Get instrument icon - prioritize instrument.icon, then instrument.instrument.icon, then name-based
-        const instrumentName = instrument.name || instrument.instrument?.name;
-        const customIcon = instrument.icon || instrument.instrument?.icon;
+        // Get instrument data properly - instrument_assignments contains nested instrument object
+        const instrumentData = instrument.instrument || {};
+        const instrumentName = instrumentData.name || instrument.name || 'Unknown Instrument';
+        const customIcon = instrumentData.icon || instrument.icon; // This should be the URL from the API
+        
+        console.log('🔍 Instrument data for icon:', instrumentName, 'customIcon:', customIcon, 'instrumentData:', instrumentData);
+        
         const instrumentIcon = this.getInstrumentIcon(instrumentName, customIcon);
         
         // Create custom pin-style icon for instrument with real icon
@@ -623,23 +665,107 @@ class IndiaInteractiveMap {
         if (!modal) {
             modal = this.createSiteModal();
         }
-        
-        // Populate modal content
+
+        // Populate basic information
         document.getElementById('modal-site-name').textContent = site.site_name || site.name;
         document.getElementById('modal-project-name').textContent = site.project?.name || 'Unknown Project';
         document.getElementById('modal-site-location').textContent = site.place || 'Not specified';
         document.getElementById('modal-site-coordinates').textContent = `${site.latitude}, ${site.longitude}`;
         document.getElementById('modal-project-description').textContent = site.project?.description || 'No description available';
+
+        // Add comprehensive site information
+        const siteDetailsContainer = document.querySelector('#site-modal .modal-content');
         
-        // Set banner image if available
+        // Remove existing comprehensive details section if present
+        const existingDetails = siteDetailsContainer.querySelector('.comprehensive-details');
+        if (existingDetails) {
+            existingDetails.remove();
+        }
+
+        // Create comprehensive details section
+        const detailsSection = document.createElement('div');
+        detailsSection.className = 'comprehensive-details';
+        detailsSection.innerHTML = `
+            <div class="details-section">
+                <h4>📍 Site Details</h4>
+                <div class="details-grid">
+                    <div class="detail-item">
+                        <label>Site Name:</label>
+                        <span>${site.site_name || 'Not specified'}</span>
+                    </div>
+                    <div class="detail-item">
+                        <label>Location:</label>
+                        <span>${site.place || 'Not specified'}</span>
+                    </div>
+                    <div class="detail-item">
+                        <label>Coordinates:</label>
+                        <span>${site.latitude}, ${site.longitude}</span>
+                    </div>
+                    <div class="detail-item">
+                        <label>Project:</label>
+                        <span>${site.project?.name || 'Unknown Project'}</span>
+                    </div>
+                    <div class="detail-item">
+                        <label>Instruments Count:</label>
+                        <span>${site.instrument_assignments ? site.instrument_assignments.length : 0} instruments</span>
+                    </div>
+                    <div class="detail-item">
+                        <label>Project Status:</label>
+                        <span>${site.project?.status || 'Unknown'}</span>
+                    </div>
+                    <div class="detail-item">
+                        <label>Created:</label>
+                        <span>${site.created_at ? new Date(site.created_at).toLocaleDateString() : 'Not specified'}</span>
+                    </div>
+                    <div class="detail-item">
+                        <label>Last Updated:</label>
+                        <span>${site.updated_at ? new Date(site.updated_at).toLocaleDateString() : 'Not specified'}</span>
+                    </div>
+                </div>
+            </div>
+            
+            ${site.instrument_assignments && site.instrument_assignments.length > 0 ? `
+            <div class="details-section">
+                <h4>🔬 Instruments at this Site</h4>
+                <div class="instruments-list">
+                    ${site.instrument_assignments.map(assignment => `
+                        <div class="instrument-card">
+                            <h5>${assignment.instrument?.name || 'Unknown Instrument'}</h5>
+                            <div class="instrument-details">
+                                <p><strong>Variables:</strong> ${assignment.variables_measured || 'Not specified'}</p>
+                                <p><strong>Measurement Type:</strong> ${assignment.measurement_type || 'Not specified'}</p>
+                                <p><strong>Resolution:</strong> ${assignment.temporal_resolution || 'Not specified'}</p>
+                                <p><strong>Units:</strong> ${assignment.number_of_units || 1}</p>
+                                <p><strong>Status:</strong> ${assignment.is_active ? 'Active' : 'Inactive'}</p>
+                                <p><strong>Address:</strong> ${assignment.instrument_address || 'Not specified'}</p>
+                                ${assignment.instrument?.description ? `<p><strong>Description:</strong> ${assignment.instrument.description}</p>` : ''}
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+            ` : ''}
+            
+            ${site.project?.description ? `
+            <div class="details-section">
+                <h4>📋 Project Description</h4>
+                <p>${site.project.description}</p>
+            </div>
+            ` : ''}
+        `;
+
+        // Insert before the banner section
         const bannerImg = document.getElementById('modal-site-banner');
+        bannerImg.parentNode.insertBefore(detailsSection, bannerImg);
+
+        // Set banner image if available
         if (site.banner && site.banner !== 'null') {
             bannerImg.src = site.banner;
             bannerImg.style.display = 'block';
         } else {
             bannerImg.style.display = 'none';
         }
-        
+
         // Set gallery images if available
         const galleryContainer = document.getElementById('modal-site-gallery');
         if (site.gallery && Array.isArray(site.gallery) && site.gallery.length > 0) {
@@ -655,45 +781,170 @@ class IndiaInteractiveMap {
         // Show modal
         modal.style.display = 'flex';
     }
-    
-    showLaravelInstrumentModal(instrument) {
+
+    showLaravelInstrumentModal(instrumentAssignment) {
         // Create modal if it doesn't exist
         let modal = document.getElementById('instrument-modal');
         if (!modal) {
             modal = this.createInstrumentModal();
         }
-        
-        const instrumentName = instrument.name || instrument.instrument?.name || 'Unknown Instrument';
-        const siteName = instrument.site?.site_name || instrument.site?.name || 'Unknown Site';
-        const projectName = instrument.project?.name || 'Unknown Project';
-        
-        // Populate modal content
+
+        // Extract instrument data from the assignment - instrumentAssignment.instrument contains the actual instrument data
+        const instrumentData = instrumentAssignment.instrument || {};
+        const instrumentName = instrumentData.name || 'Unknown Instrument';
+        const siteName = instrumentAssignment.site?.site_name || instrumentAssignment.site?.name || 'Unknown Site';
+        const projectName = instrumentAssignment.project?.name || 'Unknown Project';
+
+        console.log('🔬 Showing instrument modal for:', instrumentName, instrumentData);
+
+        // Populate basic modal content  
         document.getElementById('modal-instrument-name').textContent = `${instrumentName} - ${siteName}`;
         document.getElementById('modal-instrument-type').textContent = instrumentName;
         document.getElementById('modal-instrument-site').textContent = siteName;
         document.getElementById('modal-instrument-project').textContent = projectName;
-        document.getElementById('modal-instrument-id').textContent = instrument.id || 'N/A';
-        document.getElementById('modal-instrument-status').textContent = instrument.status || instrument.instrument?.status || 'Unknown';
-        document.getElementById('modal-instrument-coordinates').textContent = `${instrument.latitude}, ${instrument.longitude}`;
-        document.getElementById('modal-instrument-location').textContent = instrument.site?.place || 'Not specified';
-        document.getElementById('modal-instrument-project-description').textContent = instrument.project?.description || 'No description available';
+        document.getElementById('modal-instrument-status').textContent = instrumentData.status || instrumentAssignment.status || 'Unknown';
+        document.getElementById('modal-instrument-coordinates').textContent = `${instrumentAssignment.latitude}, ${instrumentAssignment.longitude}`;
+        document.getElementById('modal-instrument-location').textContent = instrumentAssignment.site?.place || 'Not specified';
+        document.getElementById('modal-instrument-project-description').textContent = instrumentAssignment.project?.description || 'No description available';
+
+        // Add comprehensive instrument information
+        const instrumentDetailsContainer = document.querySelector('#instrument-modal .modal-content');
         
-        // Set banner image if available (use site banner for instrument)
+        // Remove existing comprehensive details section if present
+        const existingDetails = instrumentDetailsContainer.querySelector('.comprehensive-details');
+        if (existingDetails) {
+            existingDetails.remove();
+        }
+
+        // Create comprehensive details section
+        const detailsSection = document.createElement('div');
+        detailsSection.className = 'comprehensive-details';
+        detailsSection.innerHTML = `
+            <div class="details-section">
+                <h4>🔬 Instrument Information</h4>
+                <div class="details-grid">
+                    <div class="detail-item">
+                        <label>Instrument Name:</label>
+                        <span>${instrumentName}</span>
+                    </div>
+                    <div class="detail-item">
+                        <label>Site Location:</label>
+                        <span>${siteName}</span>
+                    </div>
+                    <div class="detail-item">
+                        <label>Project:</label>
+                        <span>${projectName}</span>
+                    </div>
+                    <div class="detail-item">
+                        <label>Status:</label>
+                        <span class="status-${(instrumentAssignment.is_active ? 'active' : 'inactive')}">${instrumentAssignment.is_active ? '✅ Active' : '❌ Inactive'}</span>
+                    </div>
+                    <div class="detail-item">
+                        <label>Coordinates:</label>
+                        <span>${instrumentAssignment.latitude}, ${instrumentAssignment.longitude}</span>
+                    </div>
+                    <div class="detail-item">
+                        <label>Address:</label>
+                        <span>${instrumentAssignment.instrument_address || 'Not specified'}</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="details-section">
+                <h4>📊 Measurement Details</h4>
+                <div class="details-grid">
+                    <div class="detail-item">
+                        <label>Variables Measured:</label>
+                        <span>${instrumentAssignment.variables_measured || 'Not specified'}</span>
+                    </div>
+                    <div class="detail-item">
+                        <label>Measurement Type:</label>
+                        <span>${instrumentAssignment.measurement_type || 'Not specified'}</span>
+                    </div>
+                    <div class="detail-item">
+                        <label>Temporal Resolution:</label>
+                        <span>${instrumentAssignment.temporal_resolution || 'Not specified'}</span>
+                    </div>
+                    <div class="detail-item">
+                        <label>Number of Units:</label>
+                        <span>${instrumentAssignment.number_of_units || 1}</span>
+                    </div>
+                    ${instrumentData.description ? `
+                    <div class="detail-item full-width">
+                        <label>Description:</label>
+                        <span>${instrumentData.description}</span>
+                    </div>
+                    ` : ''}
+                </div>
+            </div>
+
+            <div class="details-section">
+                <h4>📅 Timeline & Maintenance</h4>
+                <div class="details-grid">
+                    <div class="detail-item">
+                        <label>Assigned Date:</label>
+                        <span>${instrumentAssignment.assigned_date ? new Date(instrumentAssignment.assigned_date).toLocaleDateString() : 'Not specified'}</span>
+                    </div>
+                    <div class="detail-item">
+                        <label>Created:</label>
+                        <span>${instrumentAssignment.created_at ? new Date(instrumentAssignment.created_at).toLocaleDateString() : 'Not specified'}</span>
+                    </div>
+                    <div class="detail-item">
+                        <label>Last Updated:</label>
+                        <span>${instrumentAssignment.updated_at ? new Date(instrumentAssignment.updated_at).toLocaleDateString() : 'Not specified'}</span>
+                    </div>
+                    <div class="detail-item">
+                        <label>Purchase Date:</label>
+                        <span>${instrumentAssignment.purchase_date ? new Date(instrumentAssignment.purchase_date).toLocaleDateString() : 'Not specified'}</span>
+                    </div>
+                    <div class="detail-item">
+                        <label>Purchase Amount:</label>
+                        <span>${instrumentAssignment.purchase_amount ? `₹${instrumentAssignment.purchase_amount}` : 'Not specified'}</span>
+                    </div>
+                    <div class="detail-item">
+                        <label>Last Maintenance:</label>
+                        <span>${instrumentData.last_maintenance_date ? new Date(instrumentData.last_maintenance_date).toLocaleDateString() : 'Not specified'}</span>
+                    </div>
+                    <div class="detail-item">
+                        <label>Next Maintenance:</label>
+                        <span>${instrumentData.next_maintenance_date ? new Date(instrumentData.next_maintenance_date).toLocaleDateString() : 'Not specified'}</span>
+                    </div>
+                    ${instrumentData.specifications ? `
+                    <div class="detail-item full-width">
+                        <label>Specifications:</label>
+                        <span>${instrumentData.specifications}</span>
+                    </div>
+                    ` : ''}
+                </div>
+            </div>
+
+            ${instrumentAssignment.project?.description ? `
+            <div class="details-section">
+                <h4>📋 Project Description</h4>
+                <p>${instrumentAssignment.project.description}</p>
+            </div>
+            ` : ''}
+        `;
+
+        // Insert before the banner section
         const bannerImg = document.getElementById('modal-instrument-banner');
-        if (instrument.site?.banner && instrument.site.banner !== 'null') {
-            bannerImg.src = instrument.site.banner;
+        bannerImg.parentNode.insertBefore(detailsSection, bannerImg);
+
+        // Set banner image if available (use site banner for instrument)
+        if (instrumentAssignment.site?.banner && instrumentAssignment.site.banner !== 'null') {
+            bannerImg.src = instrumentAssignment.site.banner;
             bannerImg.style.display = 'block';
         } else {
             bannerImg.style.display = 'none';
         }
-        
+
         // Handle gallery images (use site gallery for instrument)
         const galleryContainer = document.getElementById('modal-instrument-gallery');
-        if (instrument.site?.gallery && Array.isArray(instrument.site.gallery) && instrument.site.gallery.length > 0) {
-            galleryContainer.innerHTML = instrument.site.gallery.map(img => 
+        if (instrumentAssignment.site?.gallery && Array.isArray(instrumentAssignment.site.gallery) && instrumentAssignment.site.gallery.length > 0) {
+            galleryContainer.innerHTML = instrumentAssignment.site.gallery.map(img => 
                 `<img src="${img}" class="gallery-thumb" onclick="window.open('${img}', '_blank')" />`
             ).join('');
-            galleryContainer.style.display = instrument.site.gallery.length > 0 ? 'flex' : 'none';
+            galleryContainer.style.display = instrumentAssignment.site.gallery.length > 0 ? 'flex' : 'none';
         } else {
             galleryContainer.innerHTML = '';
             galleryContainer.style.display = 'none';
@@ -702,7 +953,7 @@ class IndiaInteractiveMap {
         // Show modal
         modal.style.display = 'flex';
     }
-    
+
     createSitesLayer(projects) {
         this.sitesLayer = L.layerGroup();
         let siteMarkerCount = 0;
@@ -969,10 +1220,10 @@ class IndiaInteractiveMap {
     getInstrumentIcon(instrumentName, customIcon = null) {
         console.log(`🔍 Getting icon for instrument: "${instrumentName}", custom icon: "${customIcon}"`);
         
-        // First check if there's a custom icon URL provided
+        // First priority: Check if there's a custom icon URL provided
         if (customIcon && (customIcon.startsWith('http') || customIcon.startsWith('/storage') || customIcon.includes('.'))) {
             console.log(`✅ Using custom icon URL: ${customIcon}`);
-            return `<img src="${customIcon}" style="width: 16px; height: 16px; object-fit: contain;" onerror="this.style.display='none'; this.parentElement.innerHTML='📡'; console.error('Failed to load custom icon: ${customIcon}');" />`;
+            return `<img src="${customIcon}" style="width: 18px; height: 18px; object-fit: contain; border-radius: 2px;" onerror="this.style.display='none'; this.parentElement.innerHTML='📡'; console.error('Failed to load custom icon: ${customIcon}');" />`;
         }
         
         if (!instrumentName) {
@@ -983,8 +1234,15 @@ class IndiaInteractiveMap {
         const name = instrumentName.toLowerCase();
         console.log(`🔍 Looking for icon for instrument name: "${name}"`);
         
-        // Define instrument icon mappings based on common instrument names
+        // Define instrument icon mappings based on common instrument names  
+        // Use more specific matches first, then general ones
         const iconMap = {
+            // Radar and Communication Instruments (specific matches first)
+            'radar': '📡',
+            'c-band': '📡',
+            'dual polarization': '📡',
+            'polarization': '📡',
+            
             // Weather and Environmental Instruments
             'weather station': '🌤️',
             'weather': '🌤️',
@@ -1039,7 +1297,7 @@ class IndiaInteractiveMap {
             'dosimeter': '☢️',
             'radioactivity': '☢️',
             
-            // Communication and Data Instruments
+            // Communication and Data Instruments (more general matches at the end)
             'antenna': '📡',
             'transmitter': '📡',
             'receiver': '📡',
@@ -1067,7 +1325,7 @@ class IndiaInteractiveMap {
             'lidar': '🔴',
             'optical': '👁️',
             
-            // Generic Sensors
+            // Generic Sensors (most general ones at the end)
             'sensor': '🔍',
             'detector': '🔍',
             'monitor': '📊',
@@ -1084,10 +1342,10 @@ class IndiaInteractiveMap {
             'lab': '🧪'
         };
         
-        // Find matching icon
+        // Find matching icon - check for exact and substring matches
         for (const [key, icon] of Object.entries(iconMap)) {
             if (name.includes(key)) {
-                console.log(`✅ Found matching icon "${icon}" for key "${key}"`);
+                console.log(`✅ Found matching icon "${icon}" for key "${key}" in name "${name}"`);
                 return icon;
             }
         }
