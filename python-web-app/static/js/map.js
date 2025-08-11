@@ -220,14 +220,17 @@ class IndiaInteractiveMap {
             const projectData = await response.json();
             console.log('📊 Received project data:', projectData);
             
+            // The API returns a direct array of projects, not wrapped in a projects property
+            const projects = Array.isArray(projectData) ? projectData : projectData.projects || [];
+            
             // Count projects, sites, and instruments
-            this.projectCount = projectData.Count || 0;
+            this.projectCount = projects.length;
             this.siteCount = 0;
             this.instrumentCount = 0;
             
-            if (projectData.projects) {
-                console.log(`🔍 Processing ${projectData.projects.length} projects...`);
-                projectData.projects.forEach((project, index) => {
+            if (projects && projects.length > 0) {
+                console.log(`🔍 Processing ${projects.length} projects...`);
+                projects.forEach((project, index) => {
                     console.log(`Project ${index + 1}: ${project.name} with ${project.sites ? project.sites.length : 0} sites`);
                     if (project.sites) {
                         project.sites.forEach((site, siteIndex) => {
@@ -257,8 +260,8 @@ class IndiaInteractiveMap {
             }
             
             // Create separate layers for sites and instruments
-            this.createSitesLayer(projectData.projects || []);
-            this.createInstrumentsLayer(projectData.projects || []);
+            this.createSitesLayer(projects || []);
+            this.createInstrumentsLayer(projects || []);
             
             console.log(`✅ Loaded ${this.projectCount} projects with ${this.siteCount} sites and ${this.instrumentCount} instruments`);
             
@@ -344,6 +347,7 @@ class IndiaInteractiveMap {
         const lng = parseFloat(site.longitude);
         
         console.log(`🎨 Creating marker for ${site.site_name} at [${lat}, ${lng}]`);
+        console.log(`🖼️ Site icon URL:`, site.icon || 'NO ICON URL');
         
         // Validate coordinates
         if (isNaN(lat) || isNaN(lng)) {
@@ -351,33 +355,89 @@ class IndiaInteractiveMap {
             return null;
         }
         
-        // Create custom icon using site icon if available, otherwise default
+        // Create custom pin-style icon using site icon URL if available, otherwise default pin
         let iconHtml = '';
-        if (site.icon && site.icon.startsWith('data:image')) {
-            console.log(`🖼️ Using custom icon for ${site.site_name}`);
-            iconHtml = `<img src="${site.icon}" style="width: 30px; height: 30px; border-radius: 15px; border: 2px solid #fff; object-fit: cover;" />`;
+        if (site.icon && (site.icon.startsWith('http') || site.icon.startsWith('/storage'))) {
+            console.log(`✅ Using icon URL for ${site.site_name}: ${site.icon}`);
+            iconHtml = `
+                <div style="position: relative; width: 40px; height: 50px;">
+                    <div style="
+                        position: absolute;
+                        bottom: 0;
+                        left: 50%;
+                        transform: translateX(-50%);
+                        width: 0;
+                        height: 0;
+                        border-left: 8px solid transparent;
+                        border-right: 8px solid transparent;
+                        border-top: 12px solid #007cba;
+                    "></div>
+                    <div style="
+                        position: absolute;
+                        top: 0;
+                        left: 50%;
+                        transform: translateX(-50%);
+                        width: 32px;
+                        height: 32px;
+                        border-radius: 50%;
+                        overflow: hidden;
+                        border: 3px solid #007cba;
+                        background: white;
+                        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+                    ">
+                        <img src="${site.icon}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.style.display='none'; this.parentElement.innerHTML='📍'; this.parentElement.style.display='flex'; this.parentElement.style.alignItems='center'; this.parentElement.style.justifyContent='center'; this.parentElement.style.fontSize='16px';" />
+                    </div>
+                </div>
+            `;
         } else {
-            console.log(`📍 Using default icon for ${site.site_name} (no custom icon available)`);
-            iconHtml = `<div style="background: #007cba; color: white; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; border: 2px solid #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.3);">📍</div>`;
+            console.log(`📍 Using default pin icon for ${site.site_name}`);
+            iconHtml = `
+                <div style="position: relative; width: 40px; height: 50px;">
+                    <div style="
+                        position: absolute;
+                        bottom: 0;
+                        left: 50%;
+                        transform: translateX(-50%);
+                        width: 0;
+                        height: 0;
+                        border-left: 8px solid transparent;
+                        border-right: 8px solid transparent;
+                        border-top: 12px solid #dc3545;
+                    "></div>
+                    <div style="
+                        position: absolute;
+                        top: 0;
+                        left: 50%;
+                        transform: translateX(-50%);
+                        width: 32px;
+                        height: 32px;
+                        border-radius: 50%;
+                        background: #dc3545;
+                        border: 3px solid white;
+                        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        color: white;
+                        font-size: 16px;
+                        font-weight: bold;
+                    ">
+                        📍
+                    </div>
+                </div>
+            `;
         }
         
         const customIcon = L.divIcon({
             html: iconHtml,
             className: 'custom-site-marker',
-            iconSize: [34, 34],
-            iconAnchor: [17, 17]
+            iconSize: [40, 50],
+            iconAnchor: [20, 50]
         });
         
         const marker = L.marker([lat, lng], { icon: customIcon });
         
-        // Create popup content with site details
-        const popupContent = this.createSitePopupContent(site, project);
-        marker.bindPopup(popupContent, {
-            maxWidth: 400,
-            className: 'custom-site-popup'
-        });
-        
-        // Add click handler to show modal
+        // Add click handler to show modal (popup/tooltip disabled)
         marker.on('click', () => {
             console.log(`🖱️ Clicked marker for ${site.site_name}`);
             this.showSiteModal(site, project);
@@ -387,37 +447,6 @@ class IndiaInteractiveMap {
         return marker;
     }
     
-    createSitePopupContent(site, project) {
-        return `
-            <div class="site-popup-content">
-                <div class="popup-header">
-                    <h3>${site.site_name}</h3>
-                    <span class="project-badge">${project.name}</span>
-                </div>
-                <div class="popup-body">
-                    <div class="popup-item">
-                        <strong>Location:</strong> ${site.place || 'Not specified'}
-                    </div>
-                    <div class="popup-item">
-                        <strong>Coordinates:</strong> ${site.latitude}, ${site.longitude}
-                    </div>
-                    <div class="popup-item">
-                        <strong>Project:</strong> ${project.name}
-                    </div>
-                    ${site.instrument_assignments ? `
-                        <div class="popup-item">
-                            <strong>Instruments:</strong> Available
-                        </div>
-                    ` : ''}
-                </div>
-                <div class="popup-footer">
-                    <button onclick="window.indiaMap.showSiteModal(${JSON.stringify(site).replace(/"/g, '&quot;')}, ${JSON.stringify(project).replace(/"/g, '&quot;')})" class="btn btn-primary btn-sm">
-                        View Details
-                    </button>
-                </div>
-            </div>
-        `;
-    }
     
     createInstrumentMarker(assignment, site, project, index) {
         const lat = parseFloat(site.latitude);
@@ -432,31 +461,58 @@ class IndiaInteractiveMap {
         }
         
         // Offset instrument markers slightly to avoid overlap with site markers
-        const offsetLat = lat + (index * 0.0005);
-        const offsetLng = lng + (index * 0.0005);
+        const offsetLat = lat + (index * 0.001);
+        const offsetLng = lng + (index * 0.001);
         
         console.log(`🎯 Instrument marker position (offset): [${offsetLat}, ${offsetLng}]`);
         
-        // Create custom icon for instrument
-        const iconHtml = `<div style="background: #28a745; color: white; border-radius: 50%; width: 25px; height: 25px; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: bold; border: 2px solid #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.3);">🔬</div>`;
+        // Create custom pin-style icon for instrument
+        const iconHtml = `
+            <div style="position: relative; width: 35px; height: 45px;">
+                <div style="
+                    position: absolute;
+                    bottom: 0;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    width: 0;
+                    height: 0;
+                    border-left: 7px solid transparent;
+                    border-right: 7px solid transparent;
+                    border-top: 10px solid #28a745;
+                "></div>
+                <div style="
+                    position: absolute;
+                    top: 0;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    width: 28px;
+                    height: 28px;
+                    border-radius: 50%;
+                    background: #28a745;
+                    border: 3px solid white;
+                    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    color: white;
+                    font-size: 14px;
+                    font-weight: bold;
+                ">
+                    🔬
+                </div>
+            </div>
+        `;
         
         const instrumentIcon = L.divIcon({
             html: iconHtml,
             className: 'custom-instrument-marker',
-            iconSize: [29, 29],
-            iconAnchor: [14, 14]
+            iconSize: [35, 45],
+            iconAnchor: [17, 45]
         });
         
         const marker = L.marker([offsetLat, offsetLng], { icon: instrumentIcon });
         
-        // Create popup content with instrument details
-        const popupContent = this.createInstrumentPopupContent(assignment, site, project);
-        marker.bindPopup(popupContent, {
-            maxWidth: 350,
-            className: 'custom-instrument-popup'
-        });
-        
-        // Add click handler to show modal
+        // Add click handler to show modal (popup/tooltip disabled)
         marker.on('click', () => {
             console.log(`🖱️ Clicked instrument marker at ${site.site_name}`);
             this.showInstrumentModal(assignment, site, project);
@@ -466,37 +522,6 @@ class IndiaInteractiveMap {
         return marker;
     }
     
-    createInstrumentPopupContent(assignment, site, project) {
-        return `
-            <div class="instrument-popup-content">
-                <div class="popup-header">
-                    <h4>${assignment.instrument_name || 'Instrument'}</h4>
-                    <span class="site-badge">${site.site_name}</span>
-                </div>
-                <div class="popup-body">
-                    <div class="popup-item">
-                        <strong>Site:</strong> ${site.site_name}
-                    </div>
-                    <div class="popup-item">
-                        <strong>Project:</strong> ${project.name}
-                    </div>
-                    <div class="popup-item">
-                        <strong>Assignment ID:</strong> ${assignment.id || 'N/A'}
-                    </div>
-                    ${assignment.status ? `
-                        <div class="popup-item">
-                            <strong>Status:</strong> ${assignment.status}
-                        </div>
-                    ` : ''}
-                </div>
-                <div class="popup-footer">
-                    <button onclick="window.indiaMap.showInstrumentModal(${JSON.stringify(assignment).replace(/"/g, '&quot;')}, ${JSON.stringify(site).replace(/"/g, '&quot;')}, ${JSON.stringify(project).replace(/"/g, '&quot;')})" class="btn btn-success btn-sm">
-                        View Details
-                    </button>
-                </div>
-            </div>
-        `;
-    }
     
     showSiteModal(site, project) {
         // Create modal if it doesn't exist
@@ -523,13 +548,23 @@ class IndiaInteractiveMap {
         
         // Set gallery images if available
         const galleryContainer = document.getElementById('modal-site-gallery');
-        if (site.gallery && site.gallery !== 'null') {
+        if (site.gallery && Array.isArray(site.gallery) && site.gallery.length > 0) {
+            // Handle array format from updated API
+            console.log(`📸 Processing ${site.gallery.length} gallery images for ${site.site_name}`);
+            galleryContainer.innerHTML = site.gallery.map(img => 
+                `<img src="${img}" class="gallery-thumb" onclick="window.open('${img}', '_blank')" />`
+            ).join('');
+            galleryContainer.style.display = site.gallery.length > 0 ? 'flex' : 'none';
+        } else if (site.gallery && typeof site.gallery === 'string' && site.gallery !== 'null') {
+            // Handle legacy space-separated string format (fallback)
+            console.log(`📸 Processing legacy gallery string for ${site.site_name}`);
             const images = site.gallery.split(' ').filter(img => img.trim() !== '');
             galleryContainer.innerHTML = images.map(img => 
                 `<img src="${img.trim()}" class="gallery-thumb" onclick="window.open('${img.trim()}', '_blank')" />`
             ).join('');
             galleryContainer.style.display = images.length > 0 ? 'flex' : 'none';
         } else {
+            console.log(`📸 No gallery images for ${site.site_name}`);
             galleryContainer.innerHTML = '';
             galleryContainer.style.display = 'none';
         }
