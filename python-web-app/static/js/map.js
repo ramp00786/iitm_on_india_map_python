@@ -237,34 +237,60 @@ class IndiaInteractiveMap {
             const projectData = await response.json();
             console.log('📊 Received project data:', projectData);
             
-            // The API returns a direct array of projects, not wrapped in a projects property
-            const projects = Array.isArray(projectData) ? projectData : projectData.projects || [];
-            
-            // Count projects, sites, and instruments
-            this.projectCount = projects.length;
-            this.siteCount = 0;
-            this.instrumentCount = 0;
-            
-            if (projects && projects.length > 0) {
-                console.log(`🔍 Processing ${projects.length} projects...`);
+            // Handle Laravel API format vs demo data format
+            if (projectData.sites && projectData.instruments) {
+                // Laravel API format: {sites: [...], instruments: [...]}
+                console.log('🔍 Processing Laravel API data format...');
                 
-                // Optimize: Process all data in one loop without excessive logging
-                projects.forEach((project) => {
-                    if (project.sites) {
-                        this.siteCount += project.sites.length;
-                        
-                        // Count instruments efficiently
-                        project.sites.forEach((site) => {
-                            if (site.instrument_assignments && site.instrument_assignments.length > 0) {
-                                this.instrumentCount += site.instrument_assignments.length;
-                            }
-                        });
-                    }
-                });
+                this.siteCount = projectData.sites.length;
+                this.instrumentCount = projectData.instruments.length;
+                this.projectCount = new Set(projectData.sites.map(site => site.project?.id).filter(id => id)).size;
                 
-                console.log(`✅ Processed ${this.projectCount} projects, ${this.siteCount} sites, ${this.instrumentCount} instruments`);
+                // Convert Laravel format to demo format for consistency
+                const convertedProjects = this.convertLaravelDataToProjectFormat(projectData);
+                
+                console.log(`✅ Processed Laravel data: ${this.projectCount} projects, ${this.siteCount} sites, ${this.instrumentCount} instruments`);
+                
+                // Create separate layers for sites and instruments
+                this.createSitesLayerFromLaravelData(projectData.sites);
+                this.createInstrumentsLayerFromLaravelData(projectData.instruments);
+                
+            } else if (Array.isArray(projectData)) {
+                // Demo data format: array of projects with nested sites and instruments
+                console.log('🔍 Processing demo data format...');
+                const projects = projectData;
+                
+                // Count projects, sites, and instruments
+                this.projectCount = projects.length;
+                this.siteCount = 0;
+                this.instrumentCount = 0;
+                
+                if (projects && projects.length > 0) {
+                    // Process all data in one loop
+                    projects.forEach((project) => {
+                        if (project.sites) {
+                            this.siteCount += project.sites.length;
+                            
+                            // Count instruments efficiently
+                            project.sites.forEach((site) => {
+                                if (site.instrument_assignments && site.instrument_assignments.length > 0) {
+                                    this.instrumentCount += site.instrument_assignments.length;
+                                }
+                            });
+                        }
+                    });
+                    
+                    console.log(`✅ Processed ${this.projectCount} projects, ${this.siteCount} sites, ${this.instrumentCount} instruments`);
+                }
+                
+                // Create separate layers for sites and instruments (demo format)
+                this.createSitesLayer(projects || []);
+                this.createInstrumentsLayer(projects || []);
             } else {
-                console.warn('⚠️ No projects found in API response');
+                console.warn('⚠️ Unknown data format received');
+                this.projectCount = 0;
+                this.siteCount = 0;
+                this.instrumentCount = 0;
             }
             
             // Update counts in UI
@@ -278,11 +304,7 @@ class IndiaInteractiveMap {
                 document.getElementById('instrument-count').textContent = this.instrumentCount;
             }
             
-            // Create separate layers for sites and instruments
-            this.createSitesLayer(projects || []);
-            this.createInstrumentsLayer(projects || []);
-            
-            console.log(`✅ Loaded ${this.projectCount} projects with ${this.siteCount} sites and ${this.instrumentCount} instruments`);
+            console.log(`✅ Loaded project data with ${this.siteCount} sites and ${this.instrumentCount} instruments`);
             
         } catch (error) {
             console.error('❌ Error loading project data:', error);
@@ -290,6 +312,395 @@ class IndiaInteractiveMap {
             // Don't throw error - map should still work without project data
             console.warn('⚠️ Map will continue without project markers');
         }
+    }
+    
+    convertLaravelDataToProjectFormat(laravelData) {
+        // Convert Laravel API format to demo format for consistency
+        // This is optional but can be useful for uniform processing
+        const projectMap = new Map();
+        
+        // Group sites by project
+        laravelData.sites.forEach(site => {
+            const projectId = site.project?.id || 'unknown';
+            if (!projectMap.has(projectId)) {
+                projectMap.set(projectId, {
+                    id: projectId,
+                    name: site.project?.name || 'Unknown Project',
+                    description: site.project?.description || '',
+                    sites: []
+                });
+            }
+            projectMap.get(projectId).sites.push({
+                id: site.id,
+                site_name: site.site_name || site.name,
+                place: site.place,
+                latitude: site.latitude,
+                longitude: site.longitude,
+                banner: site.banner,
+                gallery: site.gallery || [],
+                icon: site.icon,
+                instrument_assignments: []
+            });
+        });
+        
+        // Add instruments to their corresponding sites
+        laravelData.instruments.forEach(instrument => {
+            const siteId = instrument.site?.id;
+            if (siteId) {
+                // Find the site and add the instrument
+                for (const project of projectMap.values()) {
+                    const site = project.sites.find(s => s.id === siteId);
+                    if (site) {
+                        site.instrument_assignments.push({
+                            id: instrument.id,
+                            instrument_name: instrument.name || instrument.instrument?.name,
+                            status: instrument.status || instrument.instrument?.status,
+                            icon: instrument.icon
+                        });
+                        break;
+                    }
+                }
+            }
+        });
+        
+        return Array.from(projectMap.values());
+    }
+    
+    createSitesLayerFromLaravelData(sites) {
+        this.sitesLayer = L.layerGroup();
+        let siteMarkerCount = 0;
+        const markers = [];
+        
+        console.log(`🏗️ Creating site markers for ${sites.length} Laravel API sites...`);
+        
+        sites.forEach((site) => {
+            if (site.latitude && site.longitude) {
+                const marker = this.createSiteMarkerFromLaravelData(site);
+                if (marker) {
+                    markers.push(marker);
+                    siteMarkerCount++;
+                }
+            }
+        });
+        
+        // Add all markers at once for better performance
+        markers.forEach(marker => marker.addTo(this.sitesLayer));
+        
+        console.log(`✅ Created ${siteMarkerCount} site markers from Laravel data`);
+        
+        // Add to map if sites toggle is checked
+        const sitesToggle = document.getElementById('toggle-sites');
+        if (sitesToggle && sitesToggle.checked) {
+            console.log('🏢 Adding Laravel site markers to map');
+            this.sitesLayer.addTo(this.map);
+        }
+    }
+    
+    createInstrumentsLayerFromLaravelData(instruments) {
+        this.instrumentsLayer = L.layerGroup();
+        let instrumentMarkerCount = 0;
+        const markers = [];
+        
+        console.log(`🔬 Creating instrument markers for ${instruments.length} Laravel API instruments...`);
+        
+        instruments.forEach((instrument, index) => {
+            if (instrument.latitude && instrument.longitude) {
+                const marker = this.createInstrumentMarkerFromLaravelData(instrument, index);
+                if (marker) {
+                    markers.push(marker);
+                    instrumentMarkerCount++;
+                }
+            }
+        });
+        
+        // Add all markers at once for better performance
+        markers.forEach(marker => marker.addTo(this.instrumentsLayer));
+        
+        console.log(`✅ Created ${instrumentMarkerCount} instrument markers from Laravel data`);
+        
+        // Add to map if instruments toggle is checked
+        const instrumentsToggle = document.getElementById('toggle-instruments');
+        if (instrumentsToggle && instrumentsToggle.checked) {
+            console.log('🔬 Adding Laravel instrument markers to map');
+            this.instrumentsLayer.addTo(this.map);
+        }
+    }
+    
+    createSiteMarkerFromLaravelData(site) {
+        const lat = parseFloat(site.latitude);
+        const lng = parseFloat(site.longitude);
+        
+        // Validate coordinates
+        if (isNaN(lat) || isNaN(lng)) {
+            console.error(`❌ Invalid coordinates for ${site.site_name || site.name}: lat=${lat}, lng=${lng}`);
+            return null;
+        }
+        
+        // Create custom pin-style icon using site icon URL if available
+        let iconHtml = '';
+        if (site.icon && (site.icon.startsWith('http') || site.icon.startsWith('/storage'))) {
+            iconHtml = `
+                <div style="position: relative; width: 40px; height: 50px;">
+                    <div style="
+                        position: absolute;
+                        bottom: 0;
+                        left: 50%;
+                        transform: translateX(-50%);
+                        width: 0;
+                        height: 0;
+                        border-left: 8px solid transparent;
+                        border-right: 8px solid transparent;
+                        border-top: 12px solid #007cba;
+                    "></div>
+                    <div style="
+                        position: absolute;
+                        top: 0;
+                        left: 50%;
+                        transform: translateX(-50%);
+                        width: 32px;
+                        height: 32px;
+                        border-radius: 50%;
+                        overflow: hidden;
+                        border: 3px solid #007cba;
+                        background: white;
+                        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+                    ">
+                        <img src="${site.icon}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.style.display='none'; this.parentElement.innerHTML='📍'; this.parentElement.style.display='flex'; this.parentElement.style.alignItems='center'; this.parentElement.style.justifyContent='center'; this.parentElement.style.fontSize='16px';" />
+                    </div>
+                </div>
+            `;
+        } else {
+            iconHtml = `
+                <div style="position: relative; width: 40px; height: 50px;">
+                    <div style="
+                        position: absolute;
+                        bottom: 0;
+                        left: 50%;
+                        transform: translateX(-50%);
+                        width: 0;
+                        height: 0;
+                        border-left: 8px solid transparent;
+                        border-right: 8px solid transparent;
+                        border-top: 12px solid #dc3545;
+                    "></div>
+                    <div style="
+                        position: absolute;
+                        top: 0;
+                        left: 50%;
+                        transform: translateX(-50%);
+                        width: 32px;
+                        height: 32px;
+                        border-radius: 50%;
+                        background: #dc3545;
+                        border: 3px solid white;
+                        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        color: white;
+                        font-size: 16px;
+                        font-weight: bold;
+                    ">
+                        📍
+                    </div>
+                </div>
+            `;
+        }
+        
+        const customIcon = L.divIcon({
+            html: iconHtml,
+            className: 'custom-site-marker',
+            iconSize: [40, 50],
+            iconAnchor: [20, 50]
+        });
+        
+        const marker = L.marker([lat, lng], { icon: customIcon });
+        
+        // Add click handler to show modal
+        marker.on('click', () => {
+            this.showLaravelSiteModal(site);
+        });
+        
+        console.log(`✅ Created Laravel marker for ${site.site_name || site.name}`);
+        return marker;
+    }
+    
+    createInstrumentMarkerFromLaravelData(instrument, index) {
+        const lat = parseFloat(instrument.latitude);
+        const lng = parseFloat(instrument.longitude);
+        
+        // Validate coordinates
+        if (isNaN(lat) || isNaN(lng)) {
+            console.error(`❌ Invalid coordinates for instrument ${instrument.name}: lat=${lat}, lng=${lng}`);
+            return null;
+        }
+        
+        // Offset instrument markers slightly to avoid overlap
+        const offsetLat = lat + (index * 0.001);
+        const offsetLng = lng + (index * 0.001);
+        
+        // Get status-based color and instrument icon
+        const statusColors = {
+            'Maintenance': '#f59e0b',
+            'Available': '#10b981', 
+            'In Use': '#3b82f6',
+            'Offline': '#ef4444'
+        };
+        const statusColor = statusColors[instrument.status || instrument.instrument?.status] || '#6b7280';
+        
+        // Get instrument icon - prioritize instrument.icon, then instrument.instrument.icon, then name-based
+        const instrumentName = instrument.name || instrument.instrument?.name;
+        const customIcon = instrument.icon || instrument.instrument?.icon;
+        const instrumentIcon = this.getInstrumentIcon(instrumentName, customIcon);
+        
+        // Create custom pin-style icon for instrument with real icon
+        const iconHtml = `
+            <div style="position: relative; width: 35px; height: 45px;">
+                <div style="
+                    position: absolute;
+                    bottom: 0;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    width: 0;
+                    height: 0;
+                    border-left: 7px solid transparent;
+                    border-right: 7px solid transparent;
+                    border-top: 10px solid ${statusColor};
+                "></div>
+                <div style="
+                    position: absolute;
+                    top: 0;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    width: 28px;
+                    height: 28px;
+                    border-radius: 50%;
+                    background: ${statusColor};
+                    border: 3px solid white;
+                    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    color: white;
+                    font-size: 12px;
+                    font-weight: bold;
+                ">
+                    ${instrumentIcon}
+                </div>
+            </div>
+        `;
+        
+        const instrumentMarkerIcon = L.divIcon({
+            html: iconHtml,
+            className: 'custom-instrument-marker',
+            iconSize: [35, 45],
+            iconAnchor: [17, 45]
+        });
+        
+        const marker = L.marker([offsetLat, offsetLng], { icon: instrumentMarkerIcon });
+        
+        // Add status data attribute to the marker element for CSS styling
+        marker.on('add', function() {
+            const markerElement = this.getElement();
+            if (markerElement) {
+                markerElement.setAttribute('data-status', instrument.status || instrument.instrument?.status || 'Unknown');
+                markerElement.setAttribute('data-instrument', instrumentName || 'Unknown');
+            }
+        });
+        
+        // Add click handler to show modal
+        marker.on('click', () => {
+            this.showLaravelInstrumentModal(instrument);
+        });
+        
+        console.log(`✅ Created Laravel instrument marker for ${instrumentName || 'Unknown'} with status ${instrument.status || instrument.instrument?.status || 'Unknown'}`);
+        return marker;
+    }
+    
+    showLaravelSiteModal(site) {
+        // Create modal if it doesn't exist
+        let modal = document.getElementById('site-modal');
+        if (!modal) {
+            modal = this.createSiteModal();
+        }
+        
+        // Populate modal content
+        document.getElementById('modal-site-name').textContent = site.site_name || site.name;
+        document.getElementById('modal-project-name').textContent = site.project?.name || 'Unknown Project';
+        document.getElementById('modal-site-location').textContent = site.place || 'Not specified';
+        document.getElementById('modal-site-coordinates').textContent = `${site.latitude}, ${site.longitude}`;
+        document.getElementById('modal-project-description').textContent = site.project?.description || 'No description available';
+        
+        // Set banner image if available
+        const bannerImg = document.getElementById('modal-site-banner');
+        if (site.banner && site.banner !== 'null') {
+            bannerImg.src = site.banner;
+            bannerImg.style.display = 'block';
+        } else {
+            bannerImg.style.display = 'none';
+        }
+        
+        // Set gallery images if available
+        const galleryContainer = document.getElementById('modal-site-gallery');
+        if (site.gallery && Array.isArray(site.gallery) && site.gallery.length > 0) {
+            galleryContainer.innerHTML = site.gallery.map(img => 
+                `<img src="${img}" class="gallery-thumb" onclick="window.open('${img}', '_blank')" />`
+            ).join('');
+            galleryContainer.style.display = site.gallery.length > 0 ? 'flex' : 'none';
+        } else {
+            galleryContainer.innerHTML = '';
+            galleryContainer.style.display = 'none';
+        }
+        
+        // Show modal
+        modal.style.display = 'flex';
+    }
+    
+    showLaravelInstrumentModal(instrument) {
+        // Create modal if it doesn't exist
+        let modal = document.getElementById('instrument-modal');
+        if (!modal) {
+            modal = this.createInstrumentModal();
+        }
+        
+        const instrumentName = instrument.name || instrument.instrument?.name || 'Unknown Instrument';
+        const siteName = instrument.site?.site_name || instrument.site?.name || 'Unknown Site';
+        const projectName = instrument.project?.name || 'Unknown Project';
+        
+        // Populate modal content
+        document.getElementById('modal-instrument-name').textContent = `${instrumentName} - ${siteName}`;
+        document.getElementById('modal-instrument-type').textContent = instrumentName;
+        document.getElementById('modal-instrument-site').textContent = siteName;
+        document.getElementById('modal-instrument-project').textContent = projectName;
+        document.getElementById('modal-instrument-id').textContent = instrument.id || 'N/A';
+        document.getElementById('modal-instrument-status').textContent = instrument.status || instrument.instrument?.status || 'Unknown';
+        document.getElementById('modal-instrument-coordinates').textContent = `${instrument.latitude}, ${instrument.longitude}`;
+        document.getElementById('modal-instrument-location').textContent = instrument.site?.place || 'Not specified';
+        document.getElementById('modal-instrument-project-description').textContent = instrument.project?.description || 'No description available';
+        
+        // Set banner image if available (use site banner for instrument)
+        const bannerImg = document.getElementById('modal-instrument-banner');
+        if (instrument.site?.banner && instrument.site.banner !== 'null') {
+            bannerImg.src = instrument.site.banner;
+            bannerImg.style.display = 'block';
+        } else {
+            bannerImg.style.display = 'none';
+        }
+        
+        // Handle gallery images (use site gallery for instrument)
+        const galleryContainer = document.getElementById('modal-instrument-gallery');
+        if (instrument.site?.gallery && Array.isArray(instrument.site.gallery) && instrument.site.gallery.length > 0) {
+            galleryContainer.innerHTML = instrument.site.gallery.map(img => 
+                `<img src="${img}" class="gallery-thumb" onclick="window.open('${img}', '_blank')" />`
+            ).join('');
+            galleryContainer.style.display = instrument.site.gallery.length > 0 ? 'flex' : 'none';
+        } else {
+            galleryContainer.innerHTML = '';
+            galleryContainer.style.display = 'none';
+        }
+        
+        // Show modal
+        modal.style.display = 'flex';
     }
     
     createSitesLayer(projects) {
@@ -556,14 +967,21 @@ class IndiaInteractiveMap {
     }
     
     getInstrumentIcon(instrumentName, customIcon = null) {
+        console.log(`🔍 Getting icon for instrument: "${instrumentName}", custom icon: "${customIcon}"`);
+        
         // First check if there's a custom icon URL provided
         if (customIcon && (customIcon.startsWith('http') || customIcon.startsWith('/storage') || customIcon.includes('.'))) {
-            return `<img src="${customIcon}" style="width: 16px; height: 16px; object-fit: contain;" onerror="this.style.display='none'; this.parentElement.innerHTML='📡';" />`;
+            console.log(`✅ Using custom icon URL: ${customIcon}`);
+            return `<img src="${customIcon}" style="width: 16px; height: 16px; object-fit: contain;" onerror="this.style.display='none'; this.parentElement.innerHTML='📡'; console.error('Failed to load custom icon: ${customIcon}');" />`;
         }
         
-        if (!instrumentName) return '📡'; // Default icon for unknown instruments
+        if (!instrumentName) {
+            console.log('⚠️ No instrument name provided, using default icon');
+            return '📡'; // Default icon for unknown instruments
+        }
         
         const name = instrumentName.toLowerCase();
+        console.log(`🔍 Looking for icon for instrument name: "${name}"`);
         
         // Define instrument icon mappings based on common instrument names
         const iconMap = {
@@ -669,11 +1087,13 @@ class IndiaInteractiveMap {
         // Find matching icon
         for (const [key, icon] of Object.entries(iconMap)) {
             if (name.includes(key)) {
+                console.log(`✅ Found matching icon "${icon}" for key "${key}"`);
                 return icon;
             }
         }
         
         // Default fallback icon
+        console.log('⚠️ No matching icon found, using default 📡');
         return '📡';
     }
     

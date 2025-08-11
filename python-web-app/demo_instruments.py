@@ -28,19 +28,19 @@ SAMPLE_INSTRUMENTS = [
                         "id": 1,
                         "instrument_name": "Weather Station",
                         "status": "Available",
-                        "icon": None
+                        "icon": "https://img.icons8.com/fluency/48/000000/weather.png"
                     },
                     {
                         "id": 2,
                         "instrument_name": "Anemometer",
                         "status": "In Use",
-                        "icon": None
+                        "icon": "https://img.icons8.com/fluency/48/000000/wind.png"
                     },
                     {
                         "id": 3,
                         "instrument_name": "Rain Gauge",
                         "status": "Available",
-                        "icon": None
+                        "icon": "https://img.icons8.com/fluency/48/000000/rain.png"
                     }
                 ]
             }
@@ -65,19 +65,19 @@ SAMPLE_INSTRUMENTS = [
                         "id": 4,
                         "instrument_name": "Seismometer",
                         "status": "In Use",
-                        "icon": None
+                        "icon": "https://img.icons8.com/fluency/48/000000/seismometer.png"
                     },
                     {
                         "id": 5,
                         "instrument_name": "Accelerometer",
                         "status": "Available",
-                        "icon": None
+                        "icon": "https://img.icons8.com/fluency/48/000000/accelerometer.png"
                     },
                     {
                         "id": 6,
                         "instrument_name": "GPS Station",
                         "status": "Maintenance",
-                        "icon": None
+                        "icon": "https://img.icons8.com/fluency/48/000000/gps-device.png"
                     }
                 ]
             }
@@ -102,19 +102,19 @@ SAMPLE_INSTRUMENTS = [
                         "id": 7,
                         "instrument_name": "Water Level Gauge",
                         "status": "In Use",
-                        "icon": None
+                        "icon": "https://img.icons8.com/fluency/48/000000/water-level.png"
                     },
                     {
                         "id": 8,
                         "instrument_name": "Flow Meter",
                         "status": "Available",
-                        "icon": None
+                        "icon": "https://img.icons8.com/fluency/48/000000/water-flow.png"
                     },
                     {
                         "id": 9,
                         "instrument_name": "Current Meter",
                         "status": "Offline",
-                        "icon": None
+                        "icon": "https://img.icons8.com/fluency/48/000000/current.png"
                     }
                 ]
             }
@@ -139,19 +139,19 @@ SAMPLE_INSTRUMENTS = [
                         "id": 10,
                         "instrument_name": "Air Quality Monitor",
                         "status": "In Use",
-                        "icon": None
+                        "icon": "https://img.icons8.com/fluency/48/000000/air-quality.png"
                     },
                     {
                         "id": 11,
                         "instrument_name": "PM2.5 Sensor",
                         "status": "Available",
-                        "icon": None
+                        "icon": "https://img.icons8.com/fluency/48/000000/dust.png"
                     },
                     {
                         "id": 12,
                         "instrument_name": "Gas Sensor",
                         "status": "Maintenance",
-                        "icon": None
+                        "icon": "https://img.icons8.com/fluency/48/000000/gas-sensor.png"
                     }
                 ]
             }
@@ -176,19 +176,19 @@ SAMPLE_INSTRUMENTS = [
                         "id": 13,
                         "instrument_name": "Solar Panel",
                         "status": "In Use",
-                        "icon": None
+                        "icon": "https://img.icons8.com/fluency/48/000000/solar-panel.png"
                     },
                     {
                         "id": 14,
                         "instrument_name": "Radiation Detector",
                         "status": "Available",
-                        "icon": None
+                        "icon": "https://img.icons8.com/fluency/48/000000/radiation.png"
                     },
                     {
                         "id": 15,
                         "instrument_name": "Data Logger",
                         "status": "Available",
-                        "icon": None
+                        "icon": "https://img.icons8.com/fluency/48/000000/database.png"
                     }
                 ]
             }
