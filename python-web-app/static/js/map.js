@@ -51,15 +51,32 @@ class IndiaInteractiveMap {
     
     async init() {
         try {
+            console.log('🚀 Initializing India Interactive Map...');
+            this.showLoading();
             this.initializeMap();
             this.setupEventListeners();
-            await this.loadGeoJSONLayers();
-            await this.loadProjectData(); // Load project markers
+            
+            // Load GeoJSON layers and project data in parallel for faster loading
+            const [geoJsonResult, projectResult] = await Promise.allSettled([
+                this.loadGeoJSONLayers(),
+                this.loadProjectData()
+            ]);
+            
+            // Check if any critical loads failed
+            if (geoJsonResult.status === 'rejected') {
+                console.warn('⚠️ GeoJSON layers failed to load:', geoJsonResult.reason);
+            }
+            if (projectResult.status === 'rejected') {
+                console.warn('⚠️ Project data failed to load:', projectResult.reason);
+            }
+            
             this.hideLoading();
             this.updateStatistics();
+            console.log('✅ Map initialization completed');
         } catch (error) {
-            console.error('Error initializing map:', error);
+            console.error('❌ Error initializing map:', error);
             this.showError('Failed to initialize map: ' + error.message);
+            this.hideLoading();
         }
     }
     
@@ -230,20 +247,22 @@ class IndiaInteractiveMap {
             
             if (projects && projects.length > 0) {
                 console.log(`🔍 Processing ${projects.length} projects...`);
-                projects.forEach((project, index) => {
-                    console.log(`Project ${index + 1}: ${project.name} with ${project.sites ? project.sites.length : 0} sites`);
+                
+                // Optimize: Process all data in one loop without excessive logging
+                projects.forEach((project) => {
                     if (project.sites) {
-                        project.sites.forEach((site, siteIndex) => {
-                            console.log(`  Site ${siteIndex + 1}: ${site.site_name} at [${site.latitude}, ${site.longitude}]`);
-                            
-                            // Count instruments for each site
+                        this.siteCount += project.sites.length;
+                        
+                        // Count instruments efficiently
+                        project.sites.forEach((site) => {
                             if (site.instrument_assignments && site.instrument_assignments.length > 0) {
                                 this.instrumentCount += site.instrument_assignments.length;
                             }
                         });
-                        this.siteCount += project.sites.length;
                     }
                 });
+                
+                console.log(`✅ Processed ${this.projectCount} projects, ${this.siteCount} sites, ${this.instrumentCount} instruments`);
             } else {
                 console.warn('⚠️ No projects found in API response');
             }
@@ -276,26 +295,26 @@ class IndiaInteractiveMap {
     createSitesLayer(projects) {
         this.sitesLayer = L.layerGroup();
         let siteMarkerCount = 0;
+        const markers = []; // Batch markers for better performance
         
-        console.log(`� Creating site markers for ${projects.length} projects...`);
+        console.log(`🏗️ Creating site markers for ${projects.length} projects...`);
         
-        projects.forEach((project, projectIndex) => {
+        projects.forEach((project) => {
             if (project.sites && project.sites.length > 0) {
-                console.log(`📍 Processing ${project.sites.length} sites for project: ${project.name}`);
-                project.sites.forEach((site, siteIndex) => {
+                project.sites.forEach((site) => {
                     if (site.latitude && site.longitude) {
-                        console.log(`  Creating site marker: ${site.site_name} at [${site.latitude}, ${site.longitude}]`);
                         const marker = this.createSiteMarker(site, project);
                         if (marker) {
-                            marker.addTo(this.sitesLayer);
+                            markers.push(marker);
                             siteMarkerCount++;
                         }
-                    } else {
-                        console.warn(`  ⚠️ Site ${site.site_name} missing coordinates: lat=${site.latitude}, lng=${site.longitude}`);
                     }
                 });
             }
         });
+        
+        // Add all markers at once for better performance
+        markers.forEach(marker => marker.addTo(this.sitesLayer));
         
         console.log(`✅ Created ${siteMarkerCount} site markers`);
         
@@ -310,6 +329,7 @@ class IndiaInteractiveMap {
     createInstrumentsLayer(projects) {
         this.instrumentsLayer = L.layerGroup();
         let instrumentMarkerCount = 0;
+        const markers = []; // Batch markers for better performance
         
         console.log(`🔬 Creating instrument markers for ${projects.length} projects...`);
         
@@ -319,10 +339,9 @@ class IndiaInteractiveMap {
                     if (site.instrument_assignments && site.instrument_assignments.length > 0) {
                         site.instrument_assignments.forEach((assignment, index) => {
                             if (site.latitude && site.longitude) {
-                                console.log(`  Creating instrument marker for ${assignment.instrument_name || `Instrument ${index + 1}`} at site: ${site.site_name}`);
                                 const marker = this.createInstrumentMarker(assignment, site, project, index);
                                 if (marker) {
-                                    marker.addTo(this.instrumentsLayer);
+                                    markers.push(marker);
                                     instrumentMarkerCount++;
                                 }
                             }
@@ -331,6 +350,9 @@ class IndiaInteractiveMap {
                 });
             }
         });
+        
+        // Add all markers at once for better performance
+        markers.forEach(marker => marker.addTo(this.instrumentsLayer));
         
         console.log(`✅ Created ${instrumentMarkerCount} instrument markers`);
         
@@ -346,9 +368,6 @@ class IndiaInteractiveMap {
         const lat = parseFloat(site.latitude);
         const lng = parseFloat(site.longitude);
         
-        console.log(`🎨 Creating marker for ${site.site_name} at [${lat}, ${lng}]`);
-        console.log(`🖼️ Site icon URL:`, site.icon || 'NO ICON URL');
-        
         // Validate coordinates
         if (isNaN(lat) || isNaN(lng)) {
             console.error(`❌ Invalid coordinates for ${site.site_name}: lat=${lat}, lng=${lng}`);
@@ -358,7 +377,6 @@ class IndiaInteractiveMap {
         // Create custom pin-style icon using site icon URL if available, otherwise default pin
         let iconHtml = '';
         if (site.icon && (site.icon.startsWith('http') || site.icon.startsWith('/storage'))) {
-            console.log(`✅ Using icon URL for ${site.site_name}: ${site.icon}`);
             iconHtml = `
                 <div style="position: relative; width: 40px; height: 50px;">
                     <div style="
@@ -439,7 +457,6 @@ class IndiaInteractiveMap {
         
         // Add click handler to show modal (popup/tooltip disabled)
         marker.on('click', () => {
-            console.log(`🖱️ Clicked marker for ${site.site_name}`);
             this.showSiteModal(site, project);
         });
         
@@ -452,8 +469,6 @@ class IndiaInteractiveMap {
         const lat = parseFloat(site.latitude);
         const lng = parseFloat(site.longitude);
         
-        console.log(`🔬 Creating instrument marker for assignment at ${site.site_name}`);
-        
         // Validate coordinates
         if (isNaN(lat) || isNaN(lng)) {
             console.error(`❌ Invalid coordinates for instrument at ${site.site_name}: lat=${lat}, lng=${lng}`);
@@ -463,8 +478,6 @@ class IndiaInteractiveMap {
         // Offset instrument markers slightly to avoid overlap with site markers
         const offsetLat = lat + (index * 0.001);
         const offsetLng = lng + (index * 0.001);
-        
-        console.log(`🎯 Instrument marker position (offset): [${offsetLat}, ${offsetLng}]`);
         
         // Create custom pin-style icon for instrument
         const iconHtml = `
@@ -514,7 +527,6 @@ class IndiaInteractiveMap {
         
         // Add click handler to show modal (popup/tooltip disabled)
         marker.on('click', () => {
-            console.log(`🖱️ Clicked instrument marker at ${site.site_name}`);
             this.showInstrumentModal(assignment, site, project);
         });
         
