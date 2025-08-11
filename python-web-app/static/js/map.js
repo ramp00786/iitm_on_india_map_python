@@ -479,7 +479,19 @@ class IndiaInteractiveMap {
         const offsetLat = lat + (index * 0.001);
         const offsetLng = lng + (index * 0.001);
         
-        // Create custom pin-style icon for instrument
+        // Get status-based color and instrument icon
+        const statusColors = {
+            'Maintenance': '#f59e0b',
+            'Available': '#10b981', 
+            'In Use': '#3b82f6',
+            'Offline': '#ef4444'
+        };
+        const statusColor = statusColors[assignment.status] || '#6b7280';
+        
+        // Get instrument icon based on instrument name, custom icon, or use default
+        const instrumentIcon = this.getInstrumentIcon(assignment.instrument_name, assignment.icon);
+        
+        // Create custom pin-style icon for instrument with real icon
         const iconHtml = `
             <div style="position: relative; width: 35px; height: 45px;">
                 <div style="
@@ -491,7 +503,7 @@ class IndiaInteractiveMap {
                     height: 0;
                     border-left: 7px solid transparent;
                     border-right: 7px solid transparent;
-                    border-top: 10px solid #28a745;
+                    border-top: 10px solid ${statusColor};
                 "></div>
                 <div style="
                     position: absolute;
@@ -501,37 +513,168 @@ class IndiaInteractiveMap {
                     width: 28px;
                     height: 28px;
                     border-radius: 50%;
-                    background: #28a745;
+                    background: ${statusColor};
                     border: 3px solid white;
                     box-shadow: 0 2px 6px rgba(0,0,0,0.3);
                     display: flex;
                     align-items: center;
                     justify-content: center;
                     color: white;
-                    font-size: 14px;
+                    font-size: 12px;
                     font-weight: bold;
                 ">
-                    🔬
+                    ${instrumentIcon}
                 </div>
             </div>
         `;
         
-        const instrumentIcon = L.divIcon({
+        const instrumentMarkerIcon = L.divIcon({
             html: iconHtml,
             className: 'custom-instrument-marker',
             iconSize: [35, 45],
             iconAnchor: [17, 45]
         });
         
-        const marker = L.marker([offsetLat, offsetLng], { icon: instrumentIcon });
+        const marker = L.marker([offsetLat, offsetLng], { icon: instrumentMarkerIcon });
+        
+        // Add status data attribute to the marker element for CSS styling
+        marker.on('add', function() {
+            const markerElement = this.getElement();
+            if (markerElement) {
+                markerElement.setAttribute('data-status', assignment.status || 'Unknown');
+                markerElement.setAttribute('data-instrument', assignment.instrument_name || 'Unknown');
+            }
+        });
         
         // Add click handler to show modal (popup/tooltip disabled)
         marker.on('click', () => {
             this.showInstrumentModal(assignment, site, project);
         });
         
-        console.log(`✅ Created instrument marker`);
+        console.log(`✅ Created instrument marker for ${assignment.instrument_name || 'Unknown'} with status ${assignment.status || 'Unknown'}`);
         return marker;
+    }
+    
+    getInstrumentIcon(instrumentName, customIcon = null) {
+        // First check if there's a custom icon URL provided
+        if (customIcon && (customIcon.startsWith('http') || customIcon.startsWith('/storage') || customIcon.includes('.'))) {
+            return `<img src="${customIcon}" style="width: 16px; height: 16px; object-fit: contain;" onerror="this.style.display='none'; this.parentElement.innerHTML='📡';" />`;
+        }
+        
+        if (!instrumentName) return '📡'; // Default icon for unknown instruments
+        
+        const name = instrumentName.toLowerCase();
+        
+        // Define instrument icon mappings based on common instrument names
+        const iconMap = {
+            // Weather and Environmental Instruments
+            'weather station': '🌤️',
+            'weather': '🌤️',
+            'anemometer': '💨',
+            'wind': '💨',
+            'barometer': '🌡️',
+            'pressure': '🌡️',
+            'thermometer': '🌡️',
+            'temperature': '🌡️',
+            'hygrometer': '💧',
+            'humidity': '💧',
+            'rain gauge': '🌧️',
+            'rainfall': '🌧️',
+            'precipitation': '🌧️',
+            
+            // Seismic and Geological Instruments
+            'seismometer': '📊',
+            'seismic': '📊',
+            'accelerometer': '📈',
+            'accelerograph': '📈',
+            'tiltmeter': '📐',
+            'tilt': '📐',
+            'inclinometer': '📐',
+            'strain gauge': '⚖️',
+            'strain': '⚖️',
+            'extensometer': '📏',
+            'gps': '🛰️',
+            'gnss': '🛰️',
+            
+            // Water and Hydrology Instruments
+            'water level': '🌊',
+            'piezometer': '🌊',
+            'flow meter': '🌊',
+            'streamflow': '🌊',
+            'tide gauge': '🌊',
+            'current meter': '🌊',
+            'discharge': '🌊',
+            
+            // Air Quality and Atmospheric Instruments
+            'air quality': '🌬️',
+            'particulate': '🌬️',
+            'pm2.5': '🌬️',
+            'pm10': '🌬️',
+            'gas sensor': '🌬️',
+            'pollution': '🌬️',
+            'co2': '🌬️',
+            'ozone': '🌬️',
+            
+            // Radiation and Nuclear Instruments
+            'radiation': '☢️',
+            'geiger': '☢️',
+            'dosimeter': '☢️',
+            'radioactivity': '☢️',
+            
+            // Communication and Data Instruments
+            'antenna': '📡',
+            'transmitter': '📡',
+            'receiver': '📡',
+            'communication': '📡',
+            'radio': '📻',
+            'modem': '📡',
+            'telemetry': '📡',
+            'data logger': '💾',
+            'logger': '💾',
+            
+            // Power and Electrical Instruments
+            'solar panel': '☀️',
+            'solar': '☀️',
+            'battery': '🔋',
+            'power supply': '🔋',
+            'electrical': '⚡',
+            'voltage': '⚡',
+            'current': '⚡',
+            
+            // Optical and Camera Instruments
+            'camera': '📷',
+            'webcam': '📷',
+            'photo': '📷',
+            'laser': '🔴',
+            'lidar': '🔴',
+            'optical': '👁️',
+            
+            // Generic Sensors
+            'sensor': '🔍',
+            'detector': '🔍',
+            'monitor': '📊',
+            'meter': '📊',
+            'gauge': '📊',
+            'instrument': '📡',
+            
+            // Research and Scientific
+            'spectrometer': '🔬',
+            'analyzer': '🔬',
+            'probe': '🔬',
+            'sampler': '🔬',
+            'laboratory': '🧪',
+            'lab': '🧪'
+        };
+        
+        // Find matching icon
+        for (const [key, icon] of Object.entries(iconMap)) {
+            if (name.includes(key)) {
+                return icon;
+            }
+        }
+        
+        // Default fallback icon
+        return '📡';
     }
     
     

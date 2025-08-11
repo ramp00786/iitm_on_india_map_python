@@ -76,22 +76,38 @@ def get_projects():
         LARAVEL_API_URL = 'http://127.0.0.1:8000/api/projects-data'
         API_TOKEN = 'pms4-shape-files-integration-2025-secure-token'
         
-        # Fetch data from Laravel API
-        response = requests.get(
-            LARAVEL_API_URL,
-            params={'token': API_TOKEN},
-            timeout=30
-        )
+        # Try Laravel API first
+        try:
+            response = requests.get(
+                LARAVEL_API_URL,
+                params={'token': API_TOKEN},
+                timeout=5  # Reduced timeout
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                print("✅ Loaded data from Laravel API")
+                return jsonify(data)
+            else:
+                print(f"⚠️ Laravel API error: {response.status_code}")
+        except requests.RequestException as e:
+            print(f"⚠️ Laravel API not available: {str(e)}")
         
-        if response.status_code == 200:
-            data = response.json()
-            return jsonify(data)
-        else:
-            return jsonify({'error': f'Laravel API error: {response.status_code}'}), response.status_code
+        # Fallback: Load demo data if Laravel API fails
+        demo_file = os.path.join(app.config['BASE_DIR'], 'demo_projects.json')
+        if os.path.exists(demo_file):
+            print("🔄 Loading demo project data as fallback...")
+            with open(demo_file, 'r', encoding='utf-8') as f:
+                demo_data = json.load(f)
+                print(f"✅ Loaded {len(demo_data)} demo projects")
+                return jsonify(demo_data)
+        
+        # If nothing is available, return empty array
+        print("⚠️ No project data available (Laravel API and demo data both unavailable)")
+        return jsonify([])
     
-    except requests.RequestException as e:
-        return jsonify({'error': f'Failed to fetch projects: {str(e)}'}), 500
     except Exception as e:
+        print(f"❌ Error in get_projects: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/static/<path:filename>')

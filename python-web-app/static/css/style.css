@@ -542,6 +542,46 @@ body {
     pointer-events: none;
 }
 
+/* Instrument marker specific styles */
+.custom-instrument-marker {
+    z-index: 999; /* Slightly lower than site markers to avoid overlap issues */
+}
+
+.custom-instrument-marker:hover {
+    z-index: 1002; /* Higher on hover */
+    transform: scale(1.2) translateY(-2px);
+    filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3));
+}
+
+/* Status-based glow effects for instruments */
+.custom-instrument-marker[data-status="Available"] {
+    filter: drop-shadow(0 0 4px rgba(16, 185, 129, 0.5));
+}
+
+.custom-instrument-marker[data-status="In Use"] {
+    filter: drop-shadow(0 0 4px rgba(59, 130, 246, 0.5));
+}
+
+.custom-instrument-marker[data-status="Maintenance"] {
+    filter: drop-shadow(0 0 4px rgba(245, 158, 11, 0.5));
+    animation: pulse-warning 2s infinite;
+}
+
+.custom-instrument-marker[data-status="Offline"] {
+    filter: drop-shadow(0 0 4px rgba(239, 68, 68, 0.5));
+    animation: pulse-danger 3s infinite;
+}
+
+@keyframes pulse-warning {
+    0%, 100% { filter: drop-shadow(0 0 4px rgba(245, 158, 11, 0.5)); }
+    50% { filter: drop-shadow(0 0 8px rgba(245, 158, 11, 0.8)); }
+}
+
+@keyframes pulse-danger {
+    0%, 100% { filter: drop-shadow(0 0 4px rgba(239, 68, 68, 0.5)); }
+    50% { filter: drop-shadow(0 0 8px rgba(239, 68, 68, 0.8)); }
+}
+
 /* Ensure markers are always visible */
 .leaflet-marker-icon.custom-site-marker,
 .leaflet-marker-icon.custom-instrument-marker {
@@ -569,6 +609,24 @@ body {
 .custom-site-marker,
 .custom-instrument-marker {
     animation: markerDrop 0.6s ease-out;
+}
+
+/* Different animation delay for instruments */
+.custom-instrument-marker {
+    animation-delay: 0.3s;
+}
+
+/* Instrument tooltip styles */
+.instrument-tooltip {
+    background: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 0.5rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    white-space: nowrap;
+    position: absolute;
+    z-index: 10000;
+    pointer-events: none;
 }
 
 /* Site popup styles */
