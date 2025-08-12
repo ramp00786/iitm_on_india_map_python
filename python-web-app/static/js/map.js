@@ -726,15 +726,174 @@ class IndiaInteractiveMap {
             modal = this.createSiteModal();
         }
 
-        // Populate basic information
-        document.getElementById('modal-site-name').textContent = site.site_name || site.name;
-        document.getElementById('modal-project-name').textContent = site.project?.name || 'Unknown Project';
-        document.getElementById('modal-site-location').textContent = site.place || 'Not specified';
-        document.getElementById('modal-site-coordinates').textContent = `${site.latitude}, ${site.longitude}`;
-        document.getElementById('modal-project-description').textContent = site.project?.description || 'No description available';
+        // Get site icon from API or fallback
+        const apiSiteIcon = site.icon;
+        let siteIcon = '📍'; // default fallback
+        
+        if (apiSiteIcon && (apiSiteIcon.startsWith('http') || apiSiteIcon.startsWith('/storage') || apiSiteIcon.includes('.'))) {
+            // Use API image icon
+            siteIcon = `<img src="${apiSiteIcon}" style="width: 24px; height: 24px; object-fit: contain; border-radius: 4px;" onerror="this.outerHTML='📍';" />`;
+        }
 
-        // Add comprehensive site information
-        const siteDetailsContainer = document.querySelector('#site-modal .modal-content');
+        // Set modal title with site icon
+        const modalTitle = document.getElementById('modal-site-name');
+        const siteName = site.site_name || site.name || 'Unknown Site';
+        modalTitle.innerHTML = `${siteIcon} ${siteName}`;
+
+        // Update the site section header icon
+        const siteHeaderIcon = document.querySelector('#site-details-section .section-icon');
+        if (siteHeaderIcon) {
+            siteHeaderIcon.innerHTML = siteIcon;
+        }
+
+        // Set banner image if available
+        const bannerImg = document.getElementById('modal-site-banner');
+        if (site.banner && site.banner !== 'null') {
+            bannerImg.src = site.banner;
+            bannerImg.style.display = 'block';
+        } else {
+            bannerImg.style.display = 'none';
+        }
+
+        // Clear previous content
+        const siteDetailsGrid = document.getElementById('site-details-grid');
+        const projectDetailsGrid = document.getElementById('project-details-grid');
+        
+        siteDetailsGrid.innerHTML = '';
+        projectDetailsGrid.innerHTML = '';
+
+        // 1. SITE DETAILS SECTION
+        const latitude = parseFloat(site.latitude);
+        const longitude = parseFloat(site.longitude);
+        
+        const siteDetailsCards = [
+            {
+                icon: siteIcon,
+                label: 'Site Name',
+                value: siteName
+            },
+            {
+                icon: '🆔',
+                label: 'Site ID',
+                value: site.id || 'Not specified'
+            },
+            {
+                icon: '📍',
+                label: 'Place',
+                value: site.place || 'Not specified'
+            },
+            {
+                icon: '🗺️',
+                label: 'Coordinates',
+                value: `<span class="coordinates-link" onclick="window.open('https://www.google.com/maps?q=${latitude},${longitude}', '_blank')">${latitude.toFixed(4)}, ${longitude.toFixed(4)}</span>`
+            },
+            {
+                icon: '🔬',
+                label: 'Total Instruments',
+                value: site.instrument_assignments ? `${site.instrument_assignments.length} instruments` : '0 instruments'
+            },
+            {
+                icon: '🖼️',
+                label: 'Gallery Images',
+                value: site.gallery && site.gallery.length > 0 ? `${site.gallery.length} images` : 'No images'
+            }
+        ];
+
+        if (site.description) {
+            siteDetailsCards.push({
+                icon: '📝',
+                label: 'Site Description',
+                value: site.description,
+                fullWidth: true
+            });
+        }
+
+        siteDetailsCards.forEach(card => {
+            const cardElement = document.createElement('div');
+            cardElement.className = `info-card ${card.fullWidth ? 'full-width' : ''}`;
+            cardElement.innerHTML = `
+                <div class="info-label">
+                    <span>${card.icon}</span>
+                    ${card.label}
+                </div>
+                <div class="info-value">${card.value}</div>
+            `;
+            siteDetailsGrid.appendChild(cardElement);
+        });
+
+        // Setup Google Maps link
+        const googleMapsLink = document.getElementById('google-maps-site-link');
+        if (!isNaN(latitude) && !isNaN(longitude)) {
+            googleMapsLink.href = `https://www.google.com/maps?q=${latitude},${longitude}&z=15`;
+            googleMapsLink.style.display = 'inline-flex';
+        } else {
+            googleMapsLink.style.display = 'none';
+        }
+
+        // 2. PROJECT INFORMATION SECTION
+        const projectData = site.project || {};
+        const projectDetailsCards = [
+            {
+                icon: '🆔',
+                label: 'Project ID',
+                value: projectData.id || 'Not specified'
+            },
+            {
+                icon: '�',
+                label: 'Project Name',
+                value: projectData.name || 'Not specified'
+            }
+        ];
+
+        if (projectData.description) {
+            projectDetailsCards.push({
+                icon: '📝',
+                label: 'Project Description',
+                value: projectData.description,
+                fullWidth: true
+            });
+        }
+
+        projectDetailsCards.forEach(card => {
+            const cardElement = document.createElement('div');
+            cardElement.className = `info-card ${card.fullWidth ? 'full-width' : ''}`;
+            cardElement.innerHTML = `
+                <div class="info-label">
+                    <span>${card.icon}</span>
+                    ${card.label}
+                </div>
+                <div class="info-value">${card.value}</div>
+            `;
+            projectDetailsGrid.appendChild(cardElement);
+        });
+
+        // 3. SITE GALLERY SECTION
+        const galleryContainer = document.getElementById('modal-site-gallery');
+        const gallerySection = document.getElementById('gallery-section');
+        
+        if (site.gallery && Array.isArray(site.gallery) && site.gallery.length > 0) {
+            // Handle array format from updated API
+            galleryContainer.innerHTML = site.gallery.map(img => 
+                `<img src="${img}" class="gallery-thumb" onclick="window.open('${img}', '_blank')" />`
+            ).join('');
+            gallerySection.style.display = 'block';
+        } else if (site.gallery && typeof site.gallery === 'string' && site.gallery !== 'null') {
+            // Handle legacy space-separated string format (fallback)
+            const images = site.gallery.split(' ').filter(img => img.trim() !== '');
+            galleryContainer.innerHTML = images.map(img => 
+                `<img src="${img.trim()}" class="gallery-thumb" onclick="window.open('${img.trim()}', '_blank')" />`
+            ).join('');
+            gallerySection.style.display = images.length > 0 ? 'block' : 'none';
+        } else {
+            galleryContainer.innerHTML = '<p class="no-gallery">No images available</p>';
+            gallerySection.style.display = 'none';
+        }
+
+        // Show modal
+        modal.style.display = 'flex';
+    }
+
+    showLaravelInstrumentModal(instrumentAssignment) {
         
         // Remove existing comprehensive details section if present
         const existingDetails = siteDetailsContainer.querySelector('.comprehensive-details');
@@ -1553,43 +1712,169 @@ class IndiaInteractiveMap {
         if (!modal) {
             modal = this.createSiteModal();
         }
+
+        // Get site icon from API or fallback
+        const apiSiteIcon = site.icon;
+        let siteIcon = '📍'; // default fallback
         
-        // Populate modal content
-        document.getElementById('modal-site-name').textContent = site.site_name;
-        document.getElementById('modal-project-name').textContent = project.name;
-        document.getElementById('modal-site-location').textContent = site.place || 'Not specified';
-        document.getElementById('modal-site-coordinates').textContent = `${site.latitude}, ${site.longitude}`;
-        document.getElementById('modal-project-description').textContent = project.description || 'No description available';
-        
-        // Set banner image if available
-        const bannerImg = document.getElementById('modal-site-banner');
-        if (site.banner && site.banner !== 'null') {
-            bannerImg.src = site.banner;
-            bannerImg.style.display = 'block';
-        } else {
-            bannerImg.style.display = 'none';
+        if (apiSiteIcon && (apiSiteIcon.startsWith('http') || apiSiteIcon.startsWith('/storage') || apiSiteIcon.includes('.'))) {
+            // Use API image icon
+            siteIcon = `<img src="${apiSiteIcon}" style="width: 24px; height: 24px; object-fit: contain; border-radius: 4px;" onerror="this.outerHTML='📍';" />`;
         }
+
+        // Set modal title with site icon
+        const modalTitle = document.getElementById('modal-site-name');
+        const siteName = site.site_name || site.name || 'Unknown Site';
+        modalTitle.innerHTML = `${siteIcon} ${siteName}`;
+
+        // Update the site section header icon
+        const siteHeaderIcon = document.querySelector('#site-details-section .section-icon');
+        if (siteHeaderIcon) {
+            siteHeaderIcon.innerHTML = siteIcon;
+        }
+
+        // Clear previous content
+        const siteDetailsGrid = document.getElementById('site-details-grid');
+        const projectDetailsGrid = document.getElementById('project-details-grid');
         
-        // Set gallery images if available
+        siteDetailsGrid.innerHTML = '';
+        projectDetailsGrid.innerHTML = '';
+
+        // 1. SITE DETAILS SECTION
+        const latitude = parseFloat(site.latitude);
+        const longitude = parseFloat(site.longitude);
+        
+        const siteDetailsCards = [
+            {
+                icon: siteIcon,
+                label: 'Site Name',
+                value: siteName
+            },
+            {
+                icon: '📍',
+                label: 'Location',
+                value: site.place || 'Not specified'
+            },
+            {
+                icon: '🗺️',
+                label: 'Coordinates',
+                value: `<span class="coordinates-link" onclick="window.open('https://www.google.com/maps?q=${latitude},${longitude}', '_blank')">${latitude}, ${longitude}</span>`
+            },
+            {
+                icon: '🏢',
+                label: 'Site Type',
+                value: site.site_type || 'Not specified'
+            },
+            {
+                icon: '📅',
+                label: 'Created Date',
+                value: site.created_at ? new Date(site.created_at).toLocaleDateString('en-IN', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                }) : 'Not specified'
+            },
+            {
+                icon: '🔄',
+                label: 'Last Updated',
+                value: site.updated_at ? new Date(site.updated_at).toLocaleDateString('en-IN', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                }) : 'Not specified'
+            }
+        ];
+
+        if (site.description) {
+            siteDetailsCards.push({
+                icon: '📝',
+                label: 'Site Description',
+                value: site.description,
+                fullWidth: true
+            });
+        }
+
+        siteDetailsCards.forEach(card => {
+            const cardElement = document.createElement('div');
+            cardElement.className = `info-card ${card.fullWidth ? 'full-width' : ''}`;
+            cardElement.innerHTML = `
+                <div class="info-label">
+                    <span>${card.icon}</span>
+                    ${card.label}
+                </div>
+                <div class="info-value">${card.value}</div>
+            `;
+            siteDetailsGrid.appendChild(cardElement);
+        });
+
+        // Setup Google Maps link
+        const googleMapsLink = document.getElementById('google-maps-site-link');
+        if (!isNaN(latitude) && !isNaN(longitude)) {
+            googleMapsLink.href = `https://www.google.com/maps?q=${latitude},${longitude}&z=15`;
+            googleMapsLink.style.display = 'inline-flex';
+        } else {
+            googleMapsLink.style.display = 'none';
+        }
+
+        // 2. PROJECT INFORMATION SECTION
+        const projectData = project || {};
+        const projectDetailsCards = [
+            {
+                icon: '🆔',
+                label: 'Project ID',
+                value: projectData.id || 'Not specified'
+            },
+            {
+                icon: '📝',
+                label: 'Project Name',
+                value: projectData.name || 'Not specified'
+            }
+        ];
+
+        if (projectData.description) {
+            projectDetailsCards.push({
+                icon: '📝',
+                label: 'Project Description',
+                value: projectData.description,
+                fullWidth: true
+            });
+        }
+
+        projectDetailsCards.forEach(card => {
+            const cardElement = document.createElement('div');
+            cardElement.className = `info-card ${card.fullWidth ? 'full-width' : ''}`;
+            cardElement.innerHTML = `
+                <div class="info-label">
+                    <span>${card.icon}</span>
+                    ${card.label}
+                </div>
+                <div class="info-value">${card.value}</div>
+            `;
+            projectDetailsGrid.appendChild(cardElement);
+        });
+
+        // 3. SITE GALLERY SECTION
         const galleryContainer = document.getElementById('modal-site-gallery');
+        const gallerySection = document.getElementById('gallery-section');
+        
         if (site.gallery && Array.isArray(site.gallery) && site.gallery.length > 0) {
             // Handle array format from updated API
             galleryContainer.innerHTML = site.gallery.map(img => 
                 `<img src="${img}" class="gallery-thumb" onclick="window.open('${img}', '_blank')" />`
             ).join('');
-            galleryContainer.style.display = site.gallery.length > 0 ? 'flex' : 'none';
+            gallerySection.style.display = 'block';
         } else if (site.gallery && typeof site.gallery === 'string' && site.gallery !== 'null') {
             // Handle legacy space-separated string format (fallback)
             const images = site.gallery.split(' ').filter(img => img.trim() !== '');
             galleryContainer.innerHTML = images.map(img => 
                 `<img src="${img.trim()}" class="gallery-thumb" onclick="window.open('${img.trim()}', '_blank')" />`
             ).join('');
-            galleryContainer.style.display = images.length > 0 ? 'flex' : 'none';
+            gallerySection.style.display = images.length > 0 ? 'block' : 'none';
         } else {
-            galleryContainer.innerHTML = '';
-            galleryContainer.style.display = 'none';
+            galleryContainer.innerHTML = '<p class="no-gallery">No images available</p>';
+            gallerySection.style.display = 'none';
         }
-        
+
         // Show modal
         modal.style.display = 'flex';
     }
@@ -1648,36 +1933,69 @@ class IndiaInteractiveMap {
     createSiteModal() {
         const modalHtml = `
             <div id="site-modal" class="modal" style="display: none;">
-                <div class="modal-content modal-lg">
+                <div class="modal-content site-modal">
                     <div class="modal-header">
-                        <h4 class="modal-title" id="modal-site-name">Site Details</h4>
+                        <h4 class="modal-title" id="modal-site-name">📍 Site Details</h4>
                         <button type="button" class="close-btn" onclick="document.getElementById('site-modal').style.display='none'">&times;</button>
                     </div>
                     <div class="modal-body">
-                        <div class="site-details">
-                            <img id="modal-site-banner" class="site-banner" style="display: none;" />
-                            
-                            <div class="detail-group">
-                                <h5>Site Information</h5>
-                                <div class="detail-item">
-                                    <strong>Project:</strong> <span id="modal-project-name"></span>
+                        <!-- Banner Image Section -->
+                        <img id="modal-site-banner" class="banner-image" style="display: none;" />
+                        
+                        <!-- Site Information Section -->
+                        <div class="modal-section" id="site-details-section">
+                            <div class="section-header">
+                                <h3 class="section-title">
+                                    <span class="section-icon">📍</span>
+                                    Site Information
+                                </h3>
+                            </div>
+                            <div class="section-content">
+                                <div class="info-grid" id="site-details-grid">
+                                    <!-- Dynamic site details will be inserted here -->
                                 </div>
-                                <div class="detail-item">
-                                    <strong>Location:</strong> <span id="modal-site-location"></span>
-                                </div>
-                                <div class="detail-item">
-                                    <strong>Coordinates:</strong> <span id="modal-site-coordinates"></span>
+                                <div class="action-buttons">
+                                    <a id="google-maps-site-link" class="btn-google-map" target="_blank" style="display: none;">
+                                        <span>🗺️</span>
+                                        View on Google Maps
+                                    </a>
                                 </div>
                             </div>
-                            
-                            <div class="detail-group">
-                                <h5>Project Description</h5>
-                                <p id="modal-project-description"></p>
+                        </div>
+
+                        <!-- Project Information Section -->
+                        <div class="modal-section" id="project-details-section">
+                            <div class="section-header">
+                                <h3 class="section-title">
+                                    <span class="section-icon">📝</span>
+                                    Project Information
+                                </h3>
                             </div>
-                            
-                            <div class="detail-group">
-                                <h5>Gallery</h5>
-                                <div id="modal-site-gallery" class="site-gallery"></div>
+                            <div class="section-content">
+                                <div class="info-grid" id="project-details-grid">
+                                    <!-- Dynamic project details will be inserted here -->
+                                </div>
+                                <div id="project-description-container" style="display: none;">
+                                    <div class="project-description">
+                                        <h4>📄 Project Description</h4>
+                                        <div id="project-description-content" class="description-content"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Site Gallery Section -->
+                        <div class="modal-section" id="gallery-section">
+                            <div class="section-header">
+                                <h3 class="section-title">
+                                    <span class="section-icon">🖼️</span>
+                                    Site Gallery
+                                </h3>
+                            </div>
+                            <div class="section-content">
+                                <div id="modal-site-gallery" class="site-gallery">
+                                    <!-- Dynamic gallery will be inserted here -->
+                                </div>
                             </div>
                         </div>
                     </div>
