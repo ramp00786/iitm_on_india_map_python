@@ -11,7 +11,6 @@ class IndiaInteractiveMap {
         this.sitesLayer = null; // Layer for sites
         this.instrumentsLayer = null; // Layer for instruments
         this.currentBaseLayer = null;
-        this.selectedFeature = null;
         this.stateCount = 0;
         this.districtCount = 0;
         this.projectCount = 0;
@@ -76,7 +75,7 @@ class IndiaInteractiveMap {
             }
             
             this.hideLoading();
-            // this.updateStatistics();
+            this.updateStatistics();
         } catch (error) {
             console.error('❌ Error initializing map:', error);
             this.showError('Failed to initialize map: ' + error.message);
@@ -225,14 +224,45 @@ class IndiaInteractiveMap {
     }
     
     async loadProjectData() {
+        let projectData;
+        let dataSource = 'unknown';
+        
         try {
-            
+            console.log('🔄 Attempting to load project data from API...');
             const response = await fetch('/api/projects');
             if (!response.ok) {
-                throw new Error(`Failed to load project data: ${response.statusText}`);
+                throw new Error(`API failed: ${response.statusText}`);
             }
             
-            const projectData = await response.json();
+            projectData = await response.json();
+            dataSource = 'api-live';
+            console.log('✅ Successfully loaded project data from API');
+            
+        } catch (error) {
+            console.warn('⚠️ API failed, falling back to demo_projects.json:', error.message);
+            
+            try {
+                // Fallback to demo_projects.json via dedicated endpoint
+                const fallbackResponse = await fetch('/api/demo-projects');
+                if (!fallbackResponse.ok) {
+                    throw new Error(`Fallback endpoint failed: ${fallbackResponse.statusText}`);
+                }
+                
+                projectData = await fallbackResponse.json();
+                dataSource = 'fallback';
+                console.log('✅ Successfully loaded project data from demo_projects.json fallback');
+                
+            } catch (fallbackError) {
+                console.error('❌ Both API and fallback failed:', fallbackError);
+                dataSource = 'error';
+                throw new Error(`Failed to load project data from both API and fallback endpoint`);
+            }
+        }
+        
+        // Update data source indicator
+        this.updateDataSourceIndicator(dataSource);
+        
+        try {
             
             // Handle Laravel API format vs demo data format
             if (Array.isArray(projectData) && projectData[0] && projectData[0].sites) {
@@ -335,10 +365,59 @@ class IndiaInteractiveMap {
             
             
         } catch (error) {
-            console.error('❌ Error loading project data:', error);
+            console.error('❌ Error processing project data:', error);
             console.error('Error details:', error.stack);
+            
+            // Reset counts to zero if data loading completely fails
+            this.projectCount = 0;
+            this.siteCount = 0;
+            this.instrumentCount = 0;
+            
+            // Update counts in UI
+            if (document.getElementById('project-count')) {
+                document.getElementById('project-count').textContent = this.projectCount;
+            }
+            if (document.getElementById('site-count')) {
+                document.getElementById('site-count').textContent = this.siteCount;
+            }
+            if (document.getElementById('instrument-count')) {
+                document.getElementById('instrument-count').textContent = this.instrumentCount;
+            }
+            
             // Don't throw error - map should still work without project data
             console.warn('⚠️ Map will continue without project markers');
+            
+            // Update data source indicator for error state
+            this.updateDataSourceIndicator('error');
+        }
+    }
+    
+    updateDataSourceIndicator(source) {
+        const indicator = document.getElementById('data-source-status');
+        const textElement = document.getElementById('data-source-text');
+        
+        if (!indicator || !textElement) {
+            return; // Elements not found
+        }
+        
+        // Remove previous classes
+        indicator.classList.remove('api-live', 'fallback', 'error');
+        
+        switch (source) {
+            case 'api-live':
+                indicator.classList.add('api-live');
+                textElement.textContent = 'Live API Data';
+                break;
+            case 'fallback':
+                indicator.classList.add('fallback');
+                textElement.textContent = 'Demo Data (Fallback)';
+                break;
+            case 'error':
+                indicator.classList.add('error');
+                textElement.textContent = 'No Data Available';
+                break;
+            default:
+                textElement.textContent = 'Loading...';
         }
     }
     
@@ -810,96 +889,214 @@ class IndiaInteractiveMap {
         const instrumentName = instrumentData.name || 'Unknown Instrument';
         const siteName = instrumentAssignment.site?.site_name || instrumentAssignment.site?.name || 'Unknown Site';
         const projectName = instrumentAssignment.project?.name || 'Unknown Project';
-
+        const latitude = parseFloat(instrumentAssignment.latitude);
+        const longitude = parseFloat(instrumentAssignment.longitude);
 
         // Set modal title
-        document.getElementById('modal-instrument-name').textContent = `${instrumentName} - ${siteName}`;
+        document.getElementById('modal-instrument-name').textContent = `🔬 ${instrumentName}`;
 
-        // Add comprehensive instrument information
-        const instrumentDetailsContainer = document.querySelector('#instrument-modal .modal-content');
+        // Clear previous content
+        const instrumentInfoGrid = document.getElementById('instrument-info-grid');
+        const siteInfoGrid = document.getElementById('site-info-grid');
+        const projectInfoGrid = document.getElementById('project-info-grid');
         
-        // Remove existing comprehensive details section if present
-        const existingDetails = instrumentDetailsContainer.querySelector('.comprehensive-details');
-        if (existingDetails) {
-            existingDetails.remove();
+        instrumentInfoGrid.innerHTML = '';
+        siteInfoGrid.innerHTML = '';
+        projectInfoGrid.innerHTML = '';
+
+        // 1. INSTRUMENT INFORMATION SECTION
+        const instrumentInfoCards = [
+            {
+                icon: '🏷️',
+                label: 'Instrument Name',
+                value: instrumentName
+            },
+            {
+                icon: '📊',
+                label: 'Status',
+                value: this.createStatusBadge(instrumentAssignment.is_active ? 'Active' : 'Inactive', instrumentAssignment.is_active)
+            },
+            {
+                icon: '📍',
+                label: 'Coordinates',
+                value: `<span class="coordinates-link" onclick="window.open('https://www.google.com/maps?q=${latitude},${longitude}', '_blank')">${latitude}, ${longitude}</span>`
+            },
+            {
+                icon: '🏠',
+                label: 'Address',
+                value: instrumentAssignment.instrument_address || 'Not specified'
+            },
+            {
+                icon: '📏',
+                label: 'Variables Measured',
+                value: instrumentAssignment.variables_measured || 'Not specified'
+            },
+            {
+                icon: '📋',
+                label: 'Measurement Type',
+                value: instrumentAssignment.measurement_type || 'Not specified'
+            },
+            {
+                icon: '⏱️',
+                label: 'Temporal Resolution',
+                value: instrumentAssignment.temporal_resolution || 'Not specified'
+            },
+            {
+                icon: '🔢',
+                label: 'Number of Units',
+                value: instrumentAssignment.number_of_units || '1'
+            }
+        ];
+
+        if (instrumentData.description) {
+            instrumentInfoCards.push({
+                icon: '📝',
+                label: 'Description',
+                value: instrumentData.description,
+                fullWidth: true
+            });
         }
 
-        // Create comprehensive details section
-        const detailsSection = document.createElement('div');
-        detailsSection.className = 'comprehensive-details';
-        detailsSection.innerHTML = `
-            <div class="details-section">
-                <h4>🔬 Instrument Information</h4>
-                <div class="details-grid">
-                    <div class="detail-item">
-                        <label>Instrument Name:</label>
-                        <span>${instrumentName}</span>
-                    </div>
-                    <div class="detail-item">
-                        <label>Site Location:</label>
-                        <span>${siteName}</span>
-                    </div>
-                    <div class="detail-item">
-                        <label>Project:</label>
-                        <span>${projectName}</span>
-                    </div>
-                    <div class="detail-item">
-                        <label>Status:</label>
-                        <span class="status-${(instrumentAssignment.is_active ? 'active' : 'inactive')}">${instrumentAssignment.is_active ? '✅ Active' : '❌ Inactive'}</span>
-                    </div>
-                    <div class="detail-item">
-                        <label>Coordinates:</label>
-                        <span>${instrumentAssignment.latitude}, ${instrumentAssignment.longitude}</span>
-                    </div>
-                    <div class="detail-item">
-                        <label>Address:</label>
-                        <span>${instrumentAssignment.instrument_address || 'Not specified'}</span>
-                    </div>
-                    <div class="detail-item">
-                        <label>Variables Measured:</label>
-                        <span>${instrumentAssignment.variables_measured || 'Not specified'}</span>
-                    </div>
-                    <div class="detail-item">
-                        <label>Measurement Type:</label>
-                        <span>${instrumentAssignment.measurement_type || 'Not specified'}</span>
-                    </div>
-                    <div class="detail-item">
-                        <label>Temporal Resolution:</label>
-                        <span>${instrumentAssignment.temporal_resolution || 'Not specified'}</span>
-                    </div>
-                    <div class="detail-item">
-                        <label>Number of Units:</label>
-                        <span>${instrumentAssignment.number_of_units || 1}</span>
-                    </div>
-                    ${instrumentData.description ? `
-                    <div class="detail-item full-width">
-                        <label>Description:</label>
-                        <span>${instrumentData.description}</span>
-                    </div>
-                    ` : ''}
+        instrumentInfoCards.forEach(card => {
+            const cardElement = document.createElement('div');
+            cardElement.className = `info-card ${card.fullWidth ? 'full-width' : ''}`;
+            cardElement.innerHTML = `
+                <div class="info-label">
+                    <span>${card.icon}</span>
+                    ${card.label}
                 </div>
-            </div>
+                <div class="info-value">${card.value}</div>
+            `;
+            instrumentInfoGrid.appendChild(cardElement);
+        });
 
-            ${instrumentAssignment.project?.description ? `
-            <div class="details-section">
-                <h4>📋 Project Description</h4>
-                <p>${instrumentAssignment.project.description}</p>
-            </div>
-            ` : ''}
-            
-            <div class="details-section">
-                <h4>📸 Gallery</h4>
-                <div id="modal-instrument-gallery" class="site-gallery"></div>
-            </div>
-        `;
+        // Setup Google Maps link
+        const googleMapsLink = document.getElementById('google-maps-link');
+        if (!isNaN(latitude) && !isNaN(longitude)) {
+            googleMapsLink.href = `https://www.google.com/maps?q=${latitude},${longitude}&z=15`;
+            googleMapsLink.style.display = 'inline-flex';
+        } else {
+            googleMapsLink.style.display = 'none';
+        }
 
-        // Insert before the banner section
-        const bannerImg = document.getElementById('modal-instrument-banner');
-        bannerImg.parentNode.insertBefore(detailsSection, bannerImg);
+        // 2. SITE INFORMATION SECTION
+        const siteData = instrumentAssignment.site || {};
+        const siteInfoCards = [
+            {
+                icon: '🏢',
+                label: 'Site Name',
+                value: siteName
+            },
+            {
+                icon: '📍',
+                label: 'Location',
+                value: siteData.place || 'Not specified'
+            },
+            {
+                icon: '🗺️',
+                label: 'Site Coordinates',
+                value: siteData.latitude && siteData.longitude ? 
+                    `<span class="coordinates-link" onclick="window.open('https://www.google.com/maps?q=${siteData.latitude},${siteData.longitude}', '_blank')">${siteData.latitude}, ${siteData.longitude}</span>` : 
+                    'Not available'
+            },
+            {
+                icon: '🔬',
+                label: 'Total Instruments',
+                value: siteData.instrument_assignments ? `${siteData.instrument_assignments.length} instruments` : 'Not specified'
+            },
+            {
+                icon: '📅',
+                label: 'Site Created',
+                value: siteData.created_at ? new Date(siteData.created_at).toLocaleDateString('en-IN', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                }) : 'Not specified'
+            },
+            {
+                icon: '🔄',
+                label: 'Last Updated',
+                value: siteData.updated_at ? new Date(siteData.updated_at).toLocaleDateString('en-IN', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                }) : 'Not specified'
+            }
+        ];
+
+        siteInfoCards.forEach(card => {
+            const cardElement = document.createElement('div');
+            cardElement.className = 'info-card';
+            cardElement.innerHTML = `
+                <div class="info-label">
+                    <span>${card.icon}</span>
+                    ${card.label}
+                </div>
+                <div class="info-value">${card.value}</div>
+            `;
+            siteInfoGrid.appendChild(cardElement);
+        });
+
+        // 3. PROJECT INFORMATION SECTION
+        const projectData = instrumentAssignment.project || {};
+        const projectInfoCards = [
+            {
+                icon: '📋',
+                label: 'Project Name',
+                value: projectName
+            },
+            {
+                icon: '📊',
+                label: 'Project Status',
+                value: projectData.status || 'Unknown'
+            },
+            {
+                icon: '📅',
+                label: 'Project Created',
+                value: projectData.created_at ? new Date(projectData.created_at).toLocaleDateString('en-IN', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                }) : 'Not specified'
+            },
+            {
+                icon: '🔄',
+                label: 'Last Updated',
+                value: projectData.updated_at ? new Date(projectData.updated_at).toLocaleDateString('en-IN', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                }) : 'Not specified'
+            }
+        ];
+
+        projectInfoCards.forEach(card => {
+            const cardElement = document.createElement('div');
+            cardElement.className = 'info-card';
+            cardElement.innerHTML = `
+                <div class="info-label">
+                    <span>${card.icon}</span>
+                    ${card.label}
+                </div>
+                <div class="info-value">${card.value}</div>
+            `;
+            projectInfoGrid.appendChild(cardElement);
+        });
+
+        // Add project description if available
+        const projectDescriptionContainer = document.getElementById('project-description-container');
+        const projectDescription = document.getElementById('project-description');
+        if (projectData.description) {
+            projectDescription.textContent = projectData.description;
+            projectDescriptionContainer.style.display = 'block';
+        } else {
+            projectDescriptionContainer.style.display = 'none';
+        }
 
         // Set banner image if available (use site banner for instrument)
-        if (instrumentAssignment.site?.banner && instrumentAssignment.site.banner !== 'null') {
-            bannerImg.src = instrumentAssignment.site.banner;
+        const bannerImg = document.getElementById('modal-instrument-banner');
+        if (siteData.banner && siteData.banner !== 'null') {
+            bannerImg.src = siteData.banner;
             bannerImg.style.display = 'block';
         } else {
             bannerImg.style.display = 'none';
@@ -907,18 +1104,30 @@ class IndiaInteractiveMap {
 
         // Handle gallery images (use site gallery for instrument)
         const galleryContainer = document.getElementById('modal-instrument-gallery');
-        if (instrumentAssignment.site?.gallery && Array.isArray(instrumentAssignment.site.gallery) && instrumentAssignment.site.gallery.length > 0) {
-            galleryContainer.innerHTML = instrumentAssignment.site.gallery.map(img => 
-                `<img src="${img}" class="gallery-thumb" onclick="window.open('${img}', '_blank')" />`
-            ).join('');
-            galleryContainer.style.display = instrumentAssignment.site.gallery.length > 0 ? 'flex' : 'none';
+        const gallerySection = document.getElementById('gallery-section');
+        galleryContainer.innerHTML = '';
+        
+        if (siteData.gallery && Array.isArray(siteData.gallery) && siteData.gallery.length > 0) {
+            siteData.gallery.forEach(imageUrl => {
+                const img = document.createElement('img');
+                img.src = imageUrl;
+                img.className = 'gallery-image';
+                img.onclick = () => window.open(imageUrl, '_blank');
+                galleryContainer.appendChild(img);
+            });
+            gallerySection.style.display = 'block';
         } else {
-            galleryContainer.innerHTML = '';
-            galleryContainer.style.display = 'none';
+            gallerySection.style.display = 'none';
         }
         
         // Show modal
         modal.style.display = 'flex';
+    }
+
+    createStatusBadge(status, isActive) {
+        const statusClass = isActive ? 'status-active' : 'status-inactive';
+        const icon = isActive ? '✅' : '❌';
+        return `<span class="status-badge ${statusClass}">${icon} ${status}</span>`;
     }
 
     createSitesLayer(projects) {
@@ -1456,20 +1665,79 @@ class IndiaInteractiveMap {
     createInstrumentModal() {
         const modalHtml = `
             <div id="instrument-modal" class="modal" style="display: none;">
-                <div class="modal-content modal-lg">
+                <div class="modal-content instrument-modal">
                     <div class="modal-header">
-                        <h4 class="modal-title" id="modal-instrument-name">Instrument Details</h4>
+                        <h4 class="modal-title" id="modal-instrument-name">🔬 Instrument Details</h4>
                         <button type="button" class="close-btn" onclick="document.getElementById('instrument-modal').style.display='none'">&times;</button>
                     </div>
                     <div class="modal-body">
-                        <div class="instrument-details">
-                            <img id="modal-instrument-banner" class="site-banner" style="display: none;" />
-                            
-                            <!-- Dynamic content will be inserted here -->
-                            
-                            <div class="detail-group" style="display: none;">
-                                <h5>Gallery</h5>
-                                <div id="modal-instrument-gallery" class="site-gallery"></div>
+                        <!-- Banner Image Section -->
+                        <img id="modal-instrument-banner" class="banner-image" style="display: none;" />
+                        
+                        <!-- Instrument Information Section -->
+                        <div class="modal-section" id="instrument-info-section">
+                            <div class="section-header">
+                                <h3 class="section-title">
+                                    <span class="section-icon">🔬</span>
+                                    Instrument Information
+                                </h3>
+                            </div>
+                            <div class="section-content">
+                                <div class="info-grid" id="instrument-info-grid">
+                                    <!-- Dynamic instrument info will be inserted here -->
+                                </div>
+                                <div class="action-buttons">
+                                    <a id="google-maps-link" class="btn-google-map" target="_blank" style="display: none;">
+                                        <span>🗺️</span>
+                                        View on Google Maps
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Site Information Section -->
+                        <div class="modal-section" id="site-info-section">
+                            <div class="section-header">
+                                <h3 class="section-title">
+                                    <span class="section-icon">📍</span>
+                                    Site Information
+                                </h3>
+                            </div>
+                            <div class="section-content">
+                                <div class="info-grid" id="site-info-grid">
+                                    <!-- Dynamic site info will be inserted here -->
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Project Information Section -->
+                        <div class="modal-section" id="project-info-section">
+                            <div class="section-header">
+                                <h3 class="section-title">
+                                    <span class="section-icon">📋</span>
+                                    Project Information
+                                </h3>
+                            </div>
+                            <div class="section-content">
+                                <div class="info-grid" id="project-info-grid">
+                                    <!-- Dynamic project info will be inserted here -->
+                                </div>
+                                <div id="project-description-container" style="display: none;">
+                                    <div class="description-text" id="project-description"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Gallery Section -->
+                        <div class="modal-section" id="gallery-section" style="display: none;">
+                            <div class="section-header">
+                                <h3 class="section-title">
+                                    <span class="section-icon">📸</span>
+                                    Gallery
+                                </h3>
+                            </div>
+                            <div class="section-content">
+                                <div id="modal-instrument-gallery" class="image-gallery"></div>
                             </div>
                         </div>
                     </div>
@@ -1546,13 +1814,11 @@ class IndiaInteractiveMap {
                 this.stateLayer.resetStyle(e.target);
             },
             click: (e) => {
-                this.selectFeature({
-                    name: props.NAME_1 || 'Unknown State',
-                    type: props.ENGTYPE_1 || 'State/UT',
-                    parent: null,
-                    iso: props.ISO || 'N/A'
-                });
+                // Fit bounds to the selected state
                 this.map.fitBounds(e.target.getBounds());
+                
+                // Open the popup to show state information
+                e.target.openPopup();
             }
         });
     }
@@ -1585,13 +1851,11 @@ class IndiaInteractiveMap {
                 this.districtLayer.resetStyle(e.target);
             },
             click: (e) => {
-                this.selectFeature({
-                    name: props.NAME_2 || 'Unknown District',
-                    type: props.ENGTYPE_2 || 'District',
-                    parent: props.NAME_1 || 'Unknown',
-                    iso: props.NAME_0 || 'India'
-                });
+                // Fit bounds to the selected district
                 this.map.fitBounds(e.target.getBounds());
+                
+                // Open the popup to show district information
+                e.target.openPopup();
             }
         });
     }
@@ -1696,36 +1960,17 @@ class IndiaInteractiveMap {
         preciseMask.addTo(this.indiaMaskLayer);
     }
     
-    selectFeature(feature) {
-        this.selectedFeature = feature;
-        this.showFeatureInfo(feature);
+    updateStatistics() {
+        // const visibleLayers = 
+        //     (document.getElementById('toggle-states').checked ? 1 : 0) +
+        //     (document.getElementById('toggle-districts').checked ? 1 : 0) +
+        //     (document.getElementById('toggle-projects') && document.getElementById('toggle-projects').checked ? 1 : 0);
+        
+        // const totalFeatures = this.stateCount + this.districtCount;
+        
+        // document.getElementById('total-features').textContent = totalFeatures;
+        // document.getElementById('visible-layers').textContent = visibleLayers;
     }
-    
-    showFeatureInfo(feature) {
-        const infoPanel = document.getElementById('info-panel');
-        const infoContent = document.getElementById('info-content');
-        
-        infoContent.innerHTML = `
-            <div class="info-item"><strong>Name:</strong> ${feature.name}</div>
-            <div class="info-item"><strong>Type:</strong> ${feature.type}</div>
-            ${feature.parent ? `<div class="info-item"><strong>State:</strong> ${feature.parent}</div>` : ''}
-            <div class="info-item"><strong>ISO:</strong> ${feature.iso}</div>
-        `;
-        
-        infoPanel.style.display = 'block';
-    }
-    
-    // updateStatistics() {
-    //     const visibleLayers = 
-    //         (document.getElementById('toggle-states').checked ? 1 : 0) +
-    //         (document.getElementById('toggle-districts').checked ? 1 : 0) +
-    //         (document.getElementById('toggle-projects') && document.getElementById('toggle-projects').checked ? 1 : 0);
-        
-    //     const totalFeatures = this.stateCount + this.districtCount;
-        
-    //     document.getElementById('total-features').textContent = totalFeatures;
-    //     document.getElementById('visible-layers').textContent = visibleLayers;
-    // }
     
     resetMapView() {
         // Reset view to India bounds with proper centering

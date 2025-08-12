@@ -23,6 +23,11 @@ def index():
     """Main page with interactive map"""
     return render_template('index.html')
 
+@app.route('/test-fallback')
+def test_fallback():
+    """Test page for fallback mechanism"""
+    return send_from_directory(BASE_DIR, 'test_fallback.html')
+
 @app.route('/api/geojson/<filename>')
 def get_geojson(filename):
     """API endpoint to serve GeoJSON files"""
@@ -94,8 +99,8 @@ def get_projects():
             print(f"⚠️ Laravel API not available: {str(e)}")
         
         # Fallback: Load demo data if Laravel API fails
-        demo_file = os.path.join(app.config['BASE_DIR'], 'demo_projects.json')
-        if os.path.exists(demo_file):
+        demo_file = BASE_DIR / 'demo_projects.json'
+        if demo_file.exists():
             print("🔄 Loading demo project data as fallback...")
             with open(demo_file, 'r', encoding='utf-8') as f:
                 demo_data = json.load(f)
@@ -108,6 +113,25 @@ def get_projects():
     
     except Exception as e:
         print(f"❌ Error in get_projects: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/demo-projects')
+def get_demo_projects():
+    """Get demo project data directly"""
+    try:
+        demo_file = BASE_DIR / 'demo_projects.json'
+        if demo_file.exists():
+            print("🔄 Loading demo project data directly...")
+            with open(demo_file, 'r', encoding='utf-8') as f:
+                demo_data = json.load(f)
+                print(f"✅ Loaded {len(demo_data)} demo projects")
+                return jsonify(demo_data)
+        else:
+            print("⚠️ Demo project file not found")
+            return jsonify({'error': 'Demo project file not found'}), 404
+    
+    except Exception as e:
+        print(f"❌ Error loading demo projects: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/static/<path:filename>')

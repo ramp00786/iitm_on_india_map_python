@@ -21,43 +21,54 @@
     <header class="header">
         <div class="container">
             <div class="header-content">
-                <div class="logo-section">
+                <!-- Left Section: Logo and Title -->
+                <div class="header-left">
                     <div class="logo">
-                        <span class="logo-text">IM</span>
+                        <span class="logo-icon">🗺️</span>
                     </div>
                     <div class="title-section">
-                        <h1 class="main-title no-wrap">IITM on India Map</h1>
-                        <p class="subtitle">Interactive map</p>
+                        <h1 class="main-title">IITM on India Map</h1>
+                        <p class="subtitle">Interactive Geospatial Dashboard</p>
                     </div>
-                    <div class="controls">
+                </div>
 
-                        <label class="checkbox-item">
-                            <input type="checkbox" id="toggle-sites" checked>
-                            <span class="checkbox-text">Sites (<span id="site-count">0</span> markers)</span>
-                        </label>
-
-                        <label class="checkbox-item">
-                            <input type="checkbox" id="toggle-instruments" checked>
-                            <span class="checkbox-text">Instruments (<span id="instrument-count">0</span> markers)</span>
-                        </label>
-
-
-                        <label class="checkbox-item">
-                            <input type="checkbox" id="toggle-states" checked>
-                            <span class="checkbox-text">States/UTs (<span id="state-count">0</span> features)</span>
-                        </label>                       
-
-                        <label class="checkbox-item">
-                            <input type="checkbox" id="toggle-districts">
-                            <span class="checkbox-text">Districts (<span id="district-count">0</span> features)</span>
-                        </label>
-
+                <!-- Center Section: Layer Controls -->
+                <div class="header-center">
+                    <div class="layer-controls">
+                        <div class="control-group-inline">
+                            <span class="control-group-label">📍 Layers:</span>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="toggle-sites" checked>
+                                <span class="slider"></span>
+                                <span class="toggle-label">Sites (<span id="site-count">0</span>)</span>
+                            </label>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="toggle-instruments" checked>
+                                <span class="slider"></span>
+                                <span class="toggle-label">Instruments (<span id="instrument-count">0</span>)</span>
+                            </label>
+                        </div>
                         
-                        
+                        <div class="control-group-inline">
+                            <span class="control-group-label">🗾 Boundaries:</span>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="toggle-states" checked>
+                                <span class="slider"></span>
+                                <span class="toggle-label">States (<span id="state-count">0</span>)</span>
+                            </label>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="toggle-districts">
+                                <span class="slider"></span>
+                                <span class="toggle-label">Districts (<span id="district-count">0</span>)</span>
+                            </label>
+                        </div>
                     </div>
+                </div>
 
-                    <div class="control-group">
-                        <label class="control-label">Map Style</label>
+                <!-- Right Section: Map Style and Actions -->
+                <div class="header-right">
+                    <div class="style-control">
+                        <label class="control-label">🎨 Style:</label>
                         <select id="map-style-selector" class="style-selector">
                             <option value="onlyshape" selected>Only Shape</option>
                             <option value="satellite">Satellite</option>
@@ -66,15 +77,19 @@
                             <option value="osm">OpenStreetMap</option>
                         </select>
                     </div>
-
-                    <div class="control-group">
-                        <button id="reset-view-btn" class="control-button">
-                        🔄 Reset Map
-                    </button>
-                    </div>
                     
+                    <button id="reset-view-btn" class="action-button">
+                        <span class="button-icon">🔄</span>
+                        <span class="button-text">Reset</span>
+                    </button>
+                    
+                    <div class="data-source-indicator">
+                        <div class="status-badge" id="data-source-status">
+                            <span class="status-icon">📊</span>
+                            <span id="data-source-text" class="status-text">Loading...</span>
+                        </div>
+                    </div>
                 </div>
-                
             </div>
         </div>
     </header>
