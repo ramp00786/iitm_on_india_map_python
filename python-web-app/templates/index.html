@@ -26,9 +26,52 @@
                         <span class="logo-text">IM</span>
                     </div>
                     <div class="title-section">
-                        <h1 class="main-title">IITM on India Map</h1>
-                        <p class="subtitle">Interactive mapping system with instrument locations</p>
+                        <h1 class="main-title no-wrap">IITM on India Map</h1>
+                        <p class="subtitle">Interactive map</p>
                     </div>
+                    <div class="controls">
+
+                        <label class="checkbox-item">
+                            <input type="checkbox" id="toggle-sites" checked>
+                            <span class="checkbox-text">Sites (<span id="site-count">0</span> markers)</span>
+                        </label>
+
+                        <label class="checkbox-item">
+                            <input type="checkbox" id="toggle-instruments" checked>
+                            <span class="checkbox-text">Instruments (<span id="instrument-count">0</span> markers)</span>
+                        </label>
+
+
+                        <label class="checkbox-item">
+                            <input type="checkbox" id="toggle-states" checked>
+                            <span class="checkbox-text">States/UTs (<span id="state-count">0</span> features)</span>
+                        </label>                       
+
+                        <label class="checkbox-item">
+                            <input type="checkbox" id="toggle-districts">
+                            <span class="checkbox-text">Districts (<span id="district-count">0</span> features)</span>
+                        </label>
+
+                        
+                        
+                    </div>
+
+                    <div class="control-group">
+                        <label class="control-label">Map Style</label>
+                        <select id="map-style-selector" class="style-selector">
+                            <option value="satellite">Satellite</option>
+                            <option value="streets">Streets</option>
+                            <option value="topographic">Topographic</option>
+                            <option value="osm">OpenStreetMap</option>
+                        </select>
+                    </div>
+
+                    <div class="control-group">
+                        <button id="reset-view-btn" class="control-button">
+                        🔄 Reset Map
+                    </button>
+                    </div>
+                    
                 </div>
                 
             </div>
@@ -48,83 +91,7 @@
         <!-- Map container -->
         <div id="map" class="map-container"></div>
 
-        <!-- Control panel -->
-        <div class="control-panel">
-            <div class="panel-header">
-                <h3 class="panel-title">Map Controls</h3>
-            </div>
-            
-            <div class="panel-content">
-                <!-- Layer controls -->
-                <div class="control-group">
-                    <label class="control-label">Map Layers</label>
-                    <div class="checkbox-group">
-                        <label class="checkbox-item">
-                            <input type="checkbox" id="toggle-states" checked>
-                            <span class="checkbox-text">States/UTs (<span id="state-count">0</span> features)</span>
-                        </label>
-                        <label class="checkbox-item">
-                            <input type="checkbox" id="toggle-districts">
-                            <span class="checkbox-text">Districts (<span id="district-count">0</span> features)</span>
-                        </label>
-                        <label class="checkbox-item">
-                            <input type="checkbox" id="toggle-sites" checked>
-                            <span class="checkbox-text">Sites (<span id="site-count">0</span> markers)</span>
-                        </label>
-                        <label class="checkbox-item">
-                            <input type="checkbox" id="toggle-instruments" checked>
-                            <span class="checkbox-text">Instruments (<span id="instrument-count">0</span> markers)</span>
-                        </label>
-                    </div>
-                </div>
-
-                <!-- Map style controls -->
-                <div class="control-group">
-                    <label class="control-label">Map Style</label>
-                    <select id="map-style-selector" class="style-selector">
-                        <option value="satellite">Satellite</option>
-                        <option value="streets">Streets</option>
-                        <option value="topographic">Topographic</option>
-                        <option value="osm">OpenStreetMap</option>
-                    </select>
-                </div>
-
-                <!-- Map controls -->
-                <div class="control-group">
-                    <button id="reset-view-btn" class="control-button">
-                        🔄 Reset View to India
-                    </button>
-                </div>
-
-                <!-- Info panel -->
-                <div id="info-panel" class="info-panel" style="display: none;">
-                    <div class="info-header">
-                        <h4 class="info-title">Selected Region</h4>
-                    </div>
-                    <div id="info-content" class="info-content">
-                        <!-- Region details will be populated here -->
-                    </div>
-                </div>
-
-                <!-- Statistics -->
-                <div class="control-group">
-                    <div class="stats-grid">
-                        <div class="stat-item">
-                            <div class="stat-number" id="total-features">0</div>
-                            <div class="stat-label">Map Features</div>
-                        </div>
-                        <div class="stat-item">
-                            <div class="stat-number" id="project-count">0</div>
-                            <div class="stat-label">Projects</div>
-                        </div>
-                        <div class="stat-item">
-                            <div class="stat-number" id="visible-layers">0</div>
-                            <div class="stat-label">Active Layers</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+        
 
         <!-- Future: Instrument markers will be displayed here -->
         <!-- This is where we'll add instrument icons with popup modals later -->

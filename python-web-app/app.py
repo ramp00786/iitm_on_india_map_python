@@ -73,7 +73,7 @@ def get_projects():
         import requests
         
         # Laravel API configuration
-        LARAVEL_API_URL = 'http://127.0.0.1:8000/api/projects-data'
+        LARAVEL_API_URL = 'https://pms.tropmet.res.in/api/projects-data'
         API_TOKEN = 'pms4-shape-files-integration-2025-secure-token'
         
         # Try Laravel API first

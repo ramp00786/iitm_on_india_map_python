@@ -51,7 +51,6 @@ class IndiaInteractiveMap {
     
     async init() {
         try {
-            console.log('🚀 Initializing India Interactive Map...');
             this.showLoading();
             this.initializeMap();
             this.setupEventListeners();
@@ -71,8 +70,7 @@ class IndiaInteractiveMap {
             }
             
             this.hideLoading();
-            this.updateStatistics();
-            console.log('✅ Map initialization completed');
+            // this.updateStatistics();
         } catch (error) {
             console.error('❌ Error initializing map:', error);
             this.showError('Failed to initialize map: ' + error.message);
@@ -135,7 +133,6 @@ class IndiaInteractiveMap {
             padding: [10, 10] // Add some padding
         });
         
-        console.log('✅ Map initialized successfully with India-only bounds and masking');
     }
     
     setupEventListeners() {
@@ -168,12 +165,10 @@ class IndiaInteractiveMap {
             this.resetMapView();
         });
         
-        console.log('✅ Event listeners set up');
     }
     
     async loadGeoJSONLayers() {
         try {
-            console.log('📡 Loading GeoJSON data...');
             
             // Load states data first for precise masking
             const statesResponse = await fetch('/api/geojson/IND_WHOLE');
@@ -216,8 +211,6 @@ class IndiaInteractiveMap {
                 padding: [20, 20] // Add padding for better view
             });
             
-            console.log(`✅ Loaded ${this.stateCount} states and ${this.districtCount} districts`);
-            console.log('✅ Map view restricted to India boundaries with precise masking');
             
         } catch (error) {
             console.error('❌ Error loading GeoJSON data:', error);
@@ -227,7 +220,6 @@ class IndiaInteractiveMap {
     
     async loadProjectData() {
         try {
-            console.log('📡 Loading project data from Laravel API...');
             
             const response = await fetch('/api/projects');
             if (!response.ok) {
@@ -235,12 +227,10 @@ class IndiaInteractiveMap {
             }
             
             const projectData = await response.json();
-            console.log('📊 Received project data:', projectData);
             
             // Handle Laravel API format vs demo data format
             if (Array.isArray(projectData) && projectData[0] && projectData[0].sites) {
                 // Laravel API format: Array of projects with sites containing instrument_assignments
-                console.log('🔍 Processing Laravel API data format...');
                 
                 // Extract all sites and instruments from all projects
                 let allSites = [];
@@ -270,7 +260,6 @@ class IndiaInteractiveMap {
                 this.instrumentCount = allInstruments.length;
                 this.projectCount = projectData.length;
                 
-                console.log(`✅ Processed Laravel data: ${this.projectCount} projects, ${this.siteCount} sites, ${this.instrumentCount} instruments`);
                 
                 // Create separate layers for sites and instruments
                 this.createSitesLayerFromLaravelData(allSites);
@@ -278,7 +267,6 @@ class IndiaInteractiveMap {
                 
             } else if (projectData.sites && projectData.instruments) {
                 // Laravel API format: {sites: [...], instruments: [...]} (alternative format)
-                console.log('🔍 Processing Laravel API data format (alternative)...');
                 
                 this.siteCount = projectData.sites.length;
                 this.instrumentCount = projectData.instruments.length;
@@ -287,7 +275,6 @@ class IndiaInteractiveMap {
                 // Convert Laravel format to demo format for consistency
                 const convertedProjects = this.convertLaravelDataToProjectFormat(projectData);
                 
-                console.log(`✅ Processed Laravel data: ${this.projectCount} projects, ${this.siteCount} sites, ${this.instrumentCount} instruments`);
                 
                 // Create separate layers for sites and instruments
                 this.createSitesLayerFromLaravelData(projectData.sites);
@@ -295,7 +282,6 @@ class IndiaInteractiveMap {
                 
             } else if (Array.isArray(projectData)) {
                 // Demo data format: array of projects with nested sites and instruments
-                console.log('🔍 Processing demo data format...');
                 const projects = projectData;
                 
                 // Count projects, sites, and instruments
@@ -318,7 +304,6 @@ class IndiaInteractiveMap {
                         }
                     });
                     
-                    console.log(`✅ Processed ${this.projectCount} projects, ${this.siteCount} sites, ${this.instrumentCount} instruments`);
                 }
                 
                 // Create separate layers for sites and instruments (demo format)
@@ -342,7 +327,6 @@ class IndiaInteractiveMap {
                 document.getElementById('instrument-count').textContent = this.instrumentCount;
             }
             
-            console.log(`✅ Loaded project data with ${this.siteCount} sites and ${this.instrumentCount} instruments`);
             
         } catch (error) {
             console.error('❌ Error loading project data:', error);
@@ -409,7 +393,6 @@ class IndiaInteractiveMap {
         let siteMarkerCount = 0;
         const markers = [];
         
-        console.log(`🏗️ Creating site markers for ${sites.length} Laravel API sites...`);
         
         sites.forEach((site) => {
             if (site.latitude && site.longitude) {
@@ -424,12 +407,10 @@ class IndiaInteractiveMap {
         // Add all markers at once for better performance
         markers.forEach(marker => marker.addTo(this.sitesLayer));
         
-        console.log(`✅ Created ${siteMarkerCount} site markers from Laravel data`);
         
         // Add to map if sites toggle is checked
         const sitesToggle = document.getElementById('toggle-sites');
         if (sitesToggle && sitesToggle.checked) {
-            console.log('🏢 Adding Laravel site markers to map');
             this.sitesLayer.addTo(this.map);
         }
     }
@@ -439,7 +420,6 @@ class IndiaInteractiveMap {
         let instrumentMarkerCount = 0;
         const markers = [];
         
-        console.log(`🔬 Creating instrument markers for ${instruments.length} Laravel API instruments...`);
         
         instruments.forEach((instrument, index) => {
             if (instrument.latitude && instrument.longitude) {
@@ -454,12 +434,10 @@ class IndiaInteractiveMap {
         // Add all markers at once for better performance
         markers.forEach(marker => marker.addTo(this.instrumentsLayer));
         
-        console.log(`✅ Created ${instrumentMarkerCount} instrument markers from Laravel data`);
         
         // Add to map if instruments toggle is checked
         const instrumentsToggle = document.getElementById('toggle-instruments');
         if (instrumentsToggle && instrumentsToggle.checked) {
-            console.log('🔬 Adding Laravel instrument markers to map');
             this.instrumentsLayer.addTo(this.map);
         }
     }
@@ -559,7 +537,6 @@ class IndiaInteractiveMap {
             this.showLaravelSiteModal(site);
         });
         
-        console.log(`✅ Created Laravel marker for ${site.site_name || site.name}`);
         return marker;
     }
     
@@ -591,11 +568,10 @@ class IndiaInteractiveMap {
         const instrumentName = instrumentData.name || instrument.name || 'Unknown Instrument';
         const customIcon = instrumentData.icon || instrument.icon; // This should be the URL from the API
         
-        console.log('🔍 Instrument data for icon:', instrumentName, 'customIcon:', customIcon, 'instrumentData:', instrumentData);
         
         const instrumentIcon = this.getInstrumentIcon(instrumentName, customIcon);
         
-        // Create custom pin-style icon for instrument with real icon
+        // Create custom pin-style icon for instrument with real icon - transparent background
         const iconHtml = `
             <div style="position: relative; width: 35px; height: 45px;">
                 <div style="
@@ -617,14 +593,14 @@ class IndiaInteractiveMap {
                     width: 28px;
                     height: 28px;
                     border-radius: 50%;
-                    background: ${statusColor};
-                    border: 3px solid white;
-                    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+                    background: transparent;
+                    border: 2px solid white;
+                    box-shadow: 0 2px 6px rgba(0,0,0,0.2);
                     display: flex;
                     align-items: center;
                     justify-content: center;
-                    color: white;
-                    font-size: 12px;
+                    color: #333;
+                    font-size: 16px;
                     font-weight: bold;
                 ">
                     ${instrumentIcon}
@@ -655,7 +631,6 @@ class IndiaInteractiveMap {
             this.showLaravelInstrumentModal(instrument);
         });
         
-        console.log(`✅ Created Laravel instrument marker for ${instrumentName || 'Unknown'} with status ${instrument.status || instrument.instrument?.status || 'Unknown'}`);
         return marker;
     }
     
@@ -727,21 +702,56 @@ class IndiaInteractiveMap {
             ${site.instrument_assignments && site.instrument_assignments.length > 0 ? `
             <div class="details-section">
                 <h4>🔬 Instruments at this Site</h4>
-                <div class="instruments-list">
-                    ${site.instrument_assignments.map(assignment => `
-                        <div class="instrument-card">
-                            <h5>${assignment.instrument?.name || 'Unknown Instrument'}</h5>
-                            <div class="instrument-details">
-                                <p><strong>Variables:</strong> ${assignment.variables_measured || 'Not specified'}</p>
-                                <p><strong>Measurement Type:</strong> ${assignment.measurement_type || 'Not specified'}</p>
-                                <p><strong>Resolution:</strong> ${assignment.temporal_resolution || 'Not specified'}</p>
-                                <p><strong>Units:</strong> ${assignment.number_of_units || 1}</p>
-                                <p><strong>Status:</strong> ${assignment.is_active ? 'Active' : 'Inactive'}</p>
-                                <p><strong>Address:</strong> ${assignment.instrument_address || 'Not specified'}</p>
-                                ${assignment.instrument?.description ? `<p><strong>Description:</strong> ${assignment.instrument.description}</p>` : ''}
-                            </div>
+                <div class="instruments-table-container" style="max-height: 400px; overflow-y: auto; border: 1px solid #ddd; border-radius: 8px;">
+                    <table class="instruments-table" style="width: 100%; border-collapse: collapse; background: white;">
+                        <thead style="position: sticky; top: 0; background: #f8f9fa; z-index: 1;">
+                            <tr>
+                                <th style="padding: 12px 8px; border-bottom: 2px solid #dee2e6; text-align: left; font-weight: 600; color: #495057;">Name</th>
+                                <th style="padding: 12px 8px; border-bottom: 2px solid #dee2e6; text-align: left; font-weight: 600; color: #495057;">Variables</th>
+                                <th style="padding: 12px 8px; border-bottom: 2px solid #dee2e6; text-align: left; font-weight: 600; color: #495057;">Measurement Type</th>
+                                <th style="padding: 12px 8px; border-bottom: 2px solid #dee2e6; text-align: left; font-weight: 600; color: #495057;">Status</th>
+                                <th style="padding: 12px 8px; border-bottom: 2px solid #dee2e6; text-align: left; font-weight: 600; color: #495057;">Address</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${site.instrument_assignments.slice(0, 10).map((assignment, index) => `
+                                <tr style="border-bottom: 1px solid #dee2e6; ${index % 2 === 0 ? 'background-color: #f8f9fa;' : 'background-color: white;'}">
+                                    <td style="padding: 10px 8px; vertical-align: top;">
+                                        <strong>${assignment.instrument?.name || 'Unknown Instrument'}</strong>
+                                        ${assignment.instrument?.description ? `<br><small style="color: #6c757d;">${assignment.instrument.description.length > 50 ? assignment.instrument.description.substring(0, 50) + '...' : assignment.instrument.description}</small>` : ''}
+                                    </td>
+                                    <td style="padding: 10px 8px; vertical-align: top;">
+                                        ${assignment.variables_measured || 'Not specified'}
+                                    </td>
+                                    <td style="padding: 10px 8px; vertical-align: top;">
+                                        ${assignment.measurement_type || 'Not specified'}
+                                    </td>
+                                    <td style="padding: 10px 8px; vertical-align: top;">
+                                        <span style="
+                                            padding: 4px 8px; 
+                                            border-radius: 12px; 
+                                            font-size: 12px; 
+                                            font-weight: 500;
+                                            ${assignment.is_active ? 
+                                                'background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb;' : 
+                                                'background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb;'
+                                            }
+                                        ">
+                                            ${assignment.is_active ? '✅ Active' : '❌ Inactive'}
+                                        </span>
+                                    </td>
+                                    <td style="padding: 10px 8px; vertical-align: top; word-break: break-word; max-width: 150px;">
+                                        ${assignment.instrument_address || 'Not specified'}
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                    ${site.instrument_assignments.length > 10 ? `
+                        <div style="padding: 10px; background-color: #f8f9fa; text-align: center; color: #6c757d; font-size: 14px; border-top: 1px solid #dee2e6;">
+                            Showing 10 of ${site.instrument_assignments.length} instruments. Scroll to view all records.
                         </div>
-                    `).join('')}
+                    ` : ''}
                 </div>
             </div>
             ` : ''}
@@ -795,17 +805,9 @@ class IndiaInteractiveMap {
         const siteName = instrumentAssignment.site?.site_name || instrumentAssignment.site?.name || 'Unknown Site';
         const projectName = instrumentAssignment.project?.name || 'Unknown Project';
 
-        console.log('🔬 Showing instrument modal for:', instrumentName, instrumentData);
 
-        // Populate basic modal content  
+        // Set modal title
         document.getElementById('modal-instrument-name').textContent = `${instrumentName} - ${siteName}`;
-        document.getElementById('modal-instrument-type').textContent = instrumentName;
-        document.getElementById('modal-instrument-site').textContent = siteName;
-        document.getElementById('modal-instrument-project').textContent = projectName;
-        document.getElementById('modal-instrument-status').textContent = instrumentData.status || instrumentAssignment.status || 'Unknown';
-        document.getElementById('modal-instrument-coordinates').textContent = `${instrumentAssignment.latitude}, ${instrumentAssignment.longitude}`;
-        document.getElementById('modal-instrument-location').textContent = instrumentAssignment.site?.place || 'Not specified';
-        document.getElementById('modal-instrument-project-description').textContent = instrumentAssignment.project?.description || 'No description available';
 
         // Add comprehensive instrument information
         const instrumentDetailsContainer = document.querySelector('#instrument-modal .modal-content');
@@ -847,12 +849,6 @@ class IndiaInteractiveMap {
                         <label>Address:</label>
                         <span>${instrumentAssignment.instrument_address || 'Not specified'}</span>
                     </div>
-                </div>
-            </div>
-
-            <div class="details-section">
-                <h4>📊 Measurement Details</h4>
-                <div class="details-grid">
                     <div class="detail-item">
                         <label>Variables Measured:</label>
                         <span>${instrumentAssignment.variables_measured || 'Not specified'}</span>
@@ -878,52 +874,17 @@ class IndiaInteractiveMap {
                 </div>
             </div>
 
-            <div class="details-section">
-                <h4>📅 Timeline & Maintenance</h4>
-                <div class="details-grid">
-                    <div class="detail-item">
-                        <label>Assigned Date:</label>
-                        <span>${instrumentAssignment.assigned_date ? new Date(instrumentAssignment.assigned_date).toLocaleDateString() : 'Not specified'}</span>
-                    </div>
-                    <div class="detail-item">
-                        <label>Created:</label>
-                        <span>${instrumentAssignment.created_at ? new Date(instrumentAssignment.created_at).toLocaleDateString() : 'Not specified'}</span>
-                    </div>
-                    <div class="detail-item">
-                        <label>Last Updated:</label>
-                        <span>${instrumentAssignment.updated_at ? new Date(instrumentAssignment.updated_at).toLocaleDateString() : 'Not specified'}</span>
-                    </div>
-                    <div class="detail-item">
-                        <label>Purchase Date:</label>
-                        <span>${instrumentAssignment.purchase_date ? new Date(instrumentAssignment.purchase_date).toLocaleDateString() : 'Not specified'}</span>
-                    </div>
-                    <div class="detail-item">
-                        <label>Purchase Amount:</label>
-                        <span>${instrumentAssignment.purchase_amount ? `₹${instrumentAssignment.purchase_amount}` : 'Not specified'}</span>
-                    </div>
-                    <div class="detail-item">
-                        <label>Last Maintenance:</label>
-                        <span>${instrumentData.last_maintenance_date ? new Date(instrumentData.last_maintenance_date).toLocaleDateString() : 'Not specified'}</span>
-                    </div>
-                    <div class="detail-item">
-                        <label>Next Maintenance:</label>
-                        <span>${instrumentData.next_maintenance_date ? new Date(instrumentData.next_maintenance_date).toLocaleDateString() : 'Not specified'}</span>
-                    </div>
-                    ${instrumentData.specifications ? `
-                    <div class="detail-item full-width">
-                        <label>Specifications:</label>
-                        <span>${instrumentData.specifications}</span>
-                    </div>
-                    ` : ''}
-                </div>
-            </div>
-
             ${instrumentAssignment.project?.description ? `
             <div class="details-section">
                 <h4>📋 Project Description</h4>
                 <p>${instrumentAssignment.project.description}</p>
             </div>
             ` : ''}
+            
+            <div class="details-section">
+                <h4>📸 Gallery</h4>
+                <div id="modal-instrument-gallery" class="site-gallery"></div>
+            </div>
         `;
 
         // Insert before the banner section
@@ -959,7 +920,6 @@ class IndiaInteractiveMap {
         let siteMarkerCount = 0;
         const markers = []; // Batch markers for better performance
         
-        console.log(`🏗️ Creating site markers for ${projects.length} projects...`);
         
         projects.forEach((project) => {
             if (project.sites && project.sites.length > 0) {
@@ -978,12 +938,10 @@ class IndiaInteractiveMap {
         // Add all markers at once for better performance
         markers.forEach(marker => marker.addTo(this.sitesLayer));
         
-        console.log(`✅ Created ${siteMarkerCount} site markers`);
         
         // Add to map if sites toggle is checked
         const sitesToggle = document.getElementById('toggle-sites');
         if (sitesToggle && sitesToggle.checked) {
-            console.log('🏢 Adding site markers to map');
             this.sitesLayer.addTo(this.map);
         }
     }
@@ -993,7 +951,6 @@ class IndiaInteractiveMap {
         let instrumentMarkerCount = 0;
         const markers = []; // Batch markers for better performance
         
-        console.log(`🔬 Creating instrument markers for ${projects.length} projects...`);
         
         projects.forEach((project) => {
             if (project.sites && project.sites.length > 0) {
@@ -1016,12 +973,10 @@ class IndiaInteractiveMap {
         // Add all markers at once for better performance
         markers.forEach(marker => marker.addTo(this.instrumentsLayer));
         
-        console.log(`✅ Created ${instrumentMarkerCount} instrument markers`);
         
         // Add to map if instruments toggle is checked
         const instrumentsToggle = document.getElementById('toggle-instruments');
         if (instrumentsToggle && instrumentsToggle.checked) {
-            console.log('🔬 Adding instrument markers to map');
             this.instrumentsLayer.addTo(this.map);
         }
     }
@@ -1070,7 +1025,6 @@ class IndiaInteractiveMap {
                 </div>
             `;
         } else {
-            console.log(`📍 Using default pin icon for ${site.site_name}`);
             iconHtml = `
                 <div style="position: relative; width: 40px; height: 50px;">
                     <div style="
@@ -1122,7 +1076,6 @@ class IndiaInteractiveMap {
             this.showSiteModal(site, project);
         });
         
-        console.log(`✅ Created marker for ${site.site_name}`);
         return marker;
     }
     
@@ -1213,26 +1166,21 @@ class IndiaInteractiveMap {
             this.showInstrumentModal(assignment, site, project);
         });
         
-        console.log(`✅ Created instrument marker for ${assignment.instrument_name || 'Unknown'} with status ${assignment.status || 'Unknown'}`);
         return marker;
     }
     
     getInstrumentIcon(instrumentName, customIcon = null) {
-        console.log(`🔍 Getting icon for instrument: "${instrumentName}", custom icon: "${customIcon}"`);
         
         // First priority: Check if there's a custom icon URL provided
         if (customIcon && (customIcon.startsWith('http') || customIcon.startsWith('/storage') || customIcon.includes('.'))) {
-            console.log(`✅ Using custom icon URL: ${customIcon}`);
             return `<img src="${customIcon}" style="width: 18px; height: 18px; object-fit: contain; border-radius: 2px;" onerror="this.style.display='none'; this.parentElement.innerHTML='📡'; console.error('Failed to load custom icon: ${customIcon}');" />`;
         }
         
         if (!instrumentName) {
-            console.log('⚠️ No instrument name provided, using default icon');
             return '📡'; // Default icon for unknown instruments
         }
         
         const name = instrumentName.toLowerCase();
-        console.log(`🔍 Looking for icon for instrument name: "${name}"`);
         
         // Define instrument icon mappings based on common instrument names  
         // Use more specific matches first, then general ones
@@ -1345,13 +1293,11 @@ class IndiaInteractiveMap {
         // Find matching icon - check for exact and substring matches
         for (const [key, icon] of Object.entries(iconMap)) {
             if (name.includes(key)) {
-                console.log(`✅ Found matching icon "${icon}" for key "${key}" in name "${name}"`);
                 return icon;
             }
         }
         
         // Default fallback icon
-        console.log('⚠️ No matching icon found, using default 📡');
         return '📡';
     }
     
@@ -1383,21 +1329,18 @@ class IndiaInteractiveMap {
         const galleryContainer = document.getElementById('modal-site-gallery');
         if (site.gallery && Array.isArray(site.gallery) && site.gallery.length > 0) {
             // Handle array format from updated API
-            console.log(`📸 Processing ${site.gallery.length} gallery images for ${site.site_name}`);
             galleryContainer.innerHTML = site.gallery.map(img => 
                 `<img src="${img}" class="gallery-thumb" onclick="window.open('${img}', '_blank')" />`
             ).join('');
             galleryContainer.style.display = site.gallery.length > 0 ? 'flex' : 'none';
         } else if (site.gallery && typeof site.gallery === 'string' && site.gallery !== 'null') {
             // Handle legacy space-separated string format (fallback)
-            console.log(`📸 Processing legacy gallery string for ${site.site_name}`);
             const images = site.gallery.split(' ').filter(img => img.trim() !== '');
             galleryContainer.innerHTML = images.map(img => 
                 `<img src="${img.trim()}" class="gallery-thumb" onclick="window.open('${img.trim()}', '_blank')" />`
             ).join('');
             galleryContainer.style.display = images.length > 0 ? 'flex' : 'none';
         } else {
-            console.log(`📸 No gallery images for ${site.site_name}`);
             galleryContainer.innerHTML = '';
             galleryContainer.style.display = 'none';
         }
@@ -1437,21 +1380,18 @@ class IndiaInteractiveMap {
         const galleryContainer = document.getElementById('modal-instrument-gallery');
         if (site.gallery && Array.isArray(site.gallery) && site.gallery.length > 0) {
             // Handle array format from updated API (same as site modal)
-            console.log(`📸 Processing ${site.gallery.length} gallery images for instrument at ${site.site_name}`);
             galleryContainer.innerHTML = site.gallery.map(img => 
                 `<img src="${img}" class="gallery-thumb" onclick="window.open('${img}', '_blank')" />`
             ).join('');
             galleryContainer.style.display = site.gallery.length > 0 ? 'flex' : 'none';
         } else if (site.gallery && typeof site.gallery === 'string' && site.gallery !== 'null') {
             // Handle legacy space-separated string format (fallback) - Same as site modal
-            console.log(`📸 Processing legacy gallery string for instrument at ${site.site_name}`);
             const images = site.gallery.split(' ').filter(img => img.trim() !== '');
             galleryContainer.innerHTML = images.map(img => 
                 `<img src="${img.trim()}" class="gallery-thumb" onclick="window.open('${img.trim()}', '_blank')" />`
             ).join('');
             galleryContainer.style.display = images.length > 0 ? 'flex' : 'none';
         } else {
-            console.log(`📸 No gallery images for instrument at ${site.site_name}`);
             galleryContainer.innerHTML = '';
             galleryContainer.style.display = 'none';
         }
@@ -1519,41 +1459,9 @@ class IndiaInteractiveMap {
                         <div class="instrument-details">
                             <img id="modal-instrument-banner" class="site-banner" style="display: none;" />
                             
-                            <div class="detail-group">
-                                <h5>Instrument Information</h5>
-                                <div class="detail-item">
-                                    <strong>Instrument Name:</strong> <span id="modal-instrument-type"></span>
-                                </div>
-                                <div class="detail-item">
-                                    <strong>Assignment ID:</strong> <span id="modal-instrument-id"></span>
-                                </div>
-                                <div class="detail-item">
-                                    <strong>Status:</strong> <span id="modal-instrument-status"></span>
-                                </div>
-                            </div>
+                            <!-- Dynamic content will be inserted here -->
                             
-                            <div class="detail-group">
-                                <h5>Site Information</h5>
-                                <div class="detail-item">
-                                    <strong>Site Name:</strong> <span id="modal-instrument-site"></span>
-                                </div>
-                                <div class="detail-item">
-                                    <strong>Project:</strong> <span id="modal-instrument-project"></span>
-                                </div>
-                                <div class="detail-item">
-                                    <strong>Location:</strong> <span id="modal-instrument-location"></span>
-                                </div>
-                                <div class="detail-item">
-                                    <strong>Coordinates:</strong> <span id="modal-instrument-coordinates"></span>
-                                </div>
-                            </div>
-                            
-                            <div class="detail-group">
-                                <h5>Project Description</h5>
-                                <p id="modal-instrument-project-description"></p>
-                            </div>
-                            
-                            <div class="detail-group">
+                            <div class="detail-group" style="display: none;">
                                 <h5>Gallery</h5>
                                 <div id="modal-instrument-gallery" class="site-gallery"></div>
                             </div>
@@ -1585,7 +1493,6 @@ class IndiaInteractiveMap {
             }
         });
         
-        console.log('✅ State layer created');
     }
     
     createDistrictLayer(districtsData) {
@@ -1602,7 +1509,6 @@ class IndiaInteractiveMap {
             }
         });
         
-        console.log('✅ District layer created');
     }
     
     addStateFeatureEvents(feature, layer) {
@@ -1685,46 +1591,36 @@ class IndiaInteractiveMap {
     }
     
     toggleLayer(layerName, isVisible) {
-        console.log(`🎛️ Toggling ${layerName} layer: ${isVisible ? 'ON' : 'OFF'}`);
         
         if (layerName === 'states' && this.stateLayer) {
             if (isVisible) {
                 this.stateLayer.addTo(this.map);
-                console.log('✅ States layer added to map');
             } else {
                 this.map.removeLayer(this.stateLayer);
-                console.log('🚫 States layer removed from map');
             }
         } else if (layerName === 'districts' && this.districtLayer) {
             if (isVisible) {
                 this.districtLayer.addTo(this.map);
-                console.log('✅ Districts layer added to map');
             } else {
                 this.map.removeLayer(this.districtLayer);
-                console.log('🚫 Districts layer removed from map');
             }
         } else if (layerName === 'sites' && this.sitesLayer) {
             if (isVisible) {
                 this.sitesLayer.addTo(this.map);
-                console.log('✅ Sites layer added to map');
             } else {
                 this.map.removeLayer(this.sitesLayer);
-                console.log('🚫 Sites layer removed from map');
             }
         } else if (layerName === 'instruments' && this.instrumentsLayer) {
             if (isVisible) {
                 this.instrumentsLayer.addTo(this.map);
-                console.log('✅ Instruments layer added to map');
             } else {
                 this.map.removeLayer(this.instrumentsLayer);
-                console.log('🚫 Instruments layer removed from map');
             }
         } else {
             console.warn(`⚠️ Layer '${layerName}' not found or not initialized`);
         }
         
         this.updateStatistics();
-        console.log(`${layerName} layer ${isVisible ? 'shown' : 'hidden'}`);
     }
     
     changeMapStyle(styleKey) {
@@ -1749,7 +1645,6 @@ class IndiaInteractiveMap {
         });
         
         this.currentBaseLayer.addTo(this.map);
-        console.log(`Map style changed to: ${style.name}`);
     }
     
     updateIndiaMaskWithPreciseBoundaries(indiaData) {
@@ -1789,7 +1684,6 @@ class IndiaInteractiveMap {
         });
         
         preciseMask.addTo(this.indiaMaskLayer);
-        console.log(`✅ India mask updated with ${indiaHoles.length} precise boundary holes`);
     }
     
     selectFeature(feature) {
@@ -1811,17 +1705,17 @@ class IndiaInteractiveMap {
         infoPanel.style.display = 'block';
     }
     
-    updateStatistics() {
-        const visibleLayers = 
-            (document.getElementById('toggle-states').checked ? 1 : 0) +
-            (document.getElementById('toggle-districts').checked ? 1 : 0) +
-            (document.getElementById('toggle-projects') && document.getElementById('toggle-projects').checked ? 1 : 0);
+    // updateStatistics() {
+    //     const visibleLayers = 
+    //         (document.getElementById('toggle-states').checked ? 1 : 0) +
+    //         (document.getElementById('toggle-districts').checked ? 1 : 0) +
+    //         (document.getElementById('toggle-projects') && document.getElementById('toggle-projects').checked ? 1 : 0);
         
-        const totalFeatures = this.stateCount + this.districtCount;
+    //     const totalFeatures = this.stateCount + this.districtCount;
         
-        document.getElementById('total-features').textContent = totalFeatures;
-        document.getElementById('visible-layers').textContent = visibleLayers;
-    }
+    //     document.getElementById('total-features').textContent = totalFeatures;
+    //     document.getElementById('visible-layers').textContent = visibleLayers;
+    // }
     
     resetMapView() {
         // Reset view to India bounds with proper centering
@@ -1830,7 +1724,6 @@ class IndiaInteractiveMap {
             padding: [20, 20],
             maxZoom: 5 // Ensure we don't zoom too close
         });
-        console.log('🔄 Map view reset to India boundaries with masking');
     }
     
     showLoading() {
@@ -1855,19 +1748,9 @@ function closeErrorModal() {
 
 // Initialize the map when the page loads
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('🗺️ Initializing India Interactive Map...');
     window.indiaMap = new IndiaInteractiveMap();
     
     // Add some helpful console information
-    console.log('='.repeat(50));
-    console.log('🇮🇳 India Interactive Map - Python Web Application');
-    console.log('='.repeat(50));
-    console.log('📍 Map initialized with Leaflet.js');
-    console.log('🔗 API endpoints available:');
-    console.log('   - /api/geojson/IND_WHOLE (States/UTs)');
-    console.log('   - /api/geojson/IND_adm2 (Districts)');
-    console.log('   - /api/metadata (Dataset information)');
-    console.log('='.repeat(50));
 });
 
 // Export for use in other scripts (future instrument integration)
