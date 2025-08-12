@@ -892,8 +892,22 @@ class IndiaInteractiveMap {
         const latitude = parseFloat(instrumentAssignment.latitude);
         const longitude = parseFloat(instrumentAssignment.longitude);
 
-        // Set modal title
-        document.getElementById('modal-instrument-name').textContent = `🔬 ${instrumentName}`;
+        // Get the instrument icon from API data or fallback to generated icon
+        const apiIcon = instrumentData.icon;
+        let instrumentIcon = '🔬'; // default fallback
+        
+        if (apiIcon && (apiIcon.startsWith('http') || apiIcon.startsWith('/storage') || apiIcon.includes('.'))) {
+            // Use API image icon
+            instrumentIcon = `<img src="${apiIcon}" style="width: 24px; height: 24px; object-fit: contain; border-radius: 4px;" onerror="this.outerHTML='🔬';" />`;
+        } else {
+            // Use the generated instrument icon from the existing function
+            const generatedIcon = this.getInstrumentIcon(instrumentName, apiIcon);
+            instrumentIcon = generatedIcon;
+        }
+
+        // Set modal title with the correct instrument icon
+        const modalTitle = document.getElementById('modal-instrument-name');
+        modalTitle.innerHTML = `${instrumentIcon} ${instrumentName}`;
 
         // Clear previous content
         const instrumentInfoGrid = document.getElementById('instrument-info-grid');
@@ -907,7 +921,7 @@ class IndiaInteractiveMap {
         // 1. INSTRUMENT INFORMATION SECTION
         const instrumentInfoCards = [
             {
-                icon: '🏷️',
+                icon: instrumentIcon,
                 label: 'Instrument Name',
                 value: instrumentName
             },
@@ -981,9 +995,25 @@ class IndiaInteractiveMap {
 
         // 2. SITE INFORMATION SECTION
         const siteData = instrumentAssignment.site || {};
+        
+        // Get the site icon from API data or fallback to default icon
+        const apiSiteIcon = siteData.icon;
+        let siteIcon = '🏢'; // default fallback
+        
+        if (apiSiteIcon && (apiSiteIcon.startsWith('http') || apiSiteIcon.startsWith('/storage') || apiSiteIcon.includes('.'))) {
+            // Use API image icon
+            siteIcon = `<img src="${apiSiteIcon}" style="width: 20px; height: 20px; object-fit: contain; border-radius: 4px;" onerror="this.outerHTML='🏢';" />`;
+        }
+        
+        // Update the site section header icon
+        const siteHeaderIcon = document.querySelector('#site-info-section .section-icon');
+        if (siteHeaderIcon) {
+            siteHeaderIcon.innerHTML = siteIcon;
+        }
+        
         const siteInfoCards = [
             {
-                icon: '🏢',
+                icon: siteIcon,
                 label: 'Site Name',
                 value: siteName
             },
