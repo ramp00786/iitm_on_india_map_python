@@ -20,6 +20,12 @@ class IndiaInteractiveMap {
         this.indiaMaskLayer = null;
         
         this.mapStyles = {
+            onlyshape: {
+                name: 'Only Shape',
+                url: null, // No background tiles
+                attribution: '',
+                bounds: L.latLngBounds([5.0, 67.0], [39.0, 99.0]) // Restrict to India region
+            },
             satellite: {
                 name: 'Satellite',
                 url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
@@ -120,8 +126,8 @@ class IndiaInteractiveMap {
         immediateBackground.addTo(this.indiaMaskLayer);
         this.indiaMaskLayer.addTo(this.map);
         
-        // Set initial base layer (satellite) with India bounds restriction
-        this.changeMapStyle('satellite');
+        // Set initial base layer (Only Shape) with India bounds restriction
+        this.changeMapStyle('onlyshape');
         
         // Add scale control
         L.control.scale({
@@ -1633,18 +1639,22 @@ class IndiaInteractiveMap {
         
         if (this.currentBaseLayer) {
             this.map.removeLayer(this.currentBaseLayer);
+            this.currentBaseLayer = null;
         }
         
-        this.currentBaseLayer = L.tileLayer(style.url, {
-            attribution: style.attribution,
-            maxZoom: 18,
-            minZoom: 3,
-            tileSize: 256,
-            zoomOffset: 0,
-            bounds: style.bounds // Restrict tile loading to India region
-        });
-        
-        this.currentBaseLayer.addTo(this.map);
+        // Only add tile layer if URL exists (not for "Only Shape" mode)
+        if (style.url) {
+            this.currentBaseLayer = L.tileLayer(style.url, {
+                attribution: style.attribution,
+                maxZoom: 18,
+                minZoom: 3,
+                tileSize: 256,
+                zoomOffset: 0,
+                bounds: style.bounds // Restrict tile loading to India region
+            });
+            
+            this.currentBaseLayer.addTo(this.map);
+        }
     }
     
     updateIndiaMaskWithPreciseBoundaries(indiaData) {
