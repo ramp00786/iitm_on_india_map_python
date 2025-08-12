@@ -118,7 +118,7 @@ class ShapefileConverter:
 def main():
     # Set paths
     current_dir = Path(__file__).parent
-    input_dir = current_dir.parent  # Parent directory containing shapefiles
+    input_dir = current_dir / 'input_shapefiles'  # Organized shapefiles directory
     output_dir = current_dir / 'geojson_output'
     
     # Debug: Print the actual resolved paths
@@ -127,11 +127,6 @@ def main():
     print(f"Current directory: {current_dir.absolute()}")  
     print(f"Input directory: {input_dir.absolute()}")
     print(f"Output directory: {output_dir.absolute()}")
-    print()
-    
-    # Override input_dir to the correct parent directory
-    input_dir = Path(r"d:\PHP\Wamp64\www\tulsiram_work\Project-Management-System\Shape_files")
-    print(f"Corrected input directory: {input_dir.absolute()}")
     print()
     
     # Initialize converter

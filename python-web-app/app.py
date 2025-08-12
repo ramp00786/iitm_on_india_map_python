@@ -16,7 +16,7 @@ app.config['DEBUG'] = True
 
 # Paths
 BASE_DIR = Path(__file__).parent
-GEOJSON_DIR = BASE_DIR.parent / 'python-shapefile-converter' / 'geojson_output'
+GEOJSON_DIR = BASE_DIR / 'geojson_output'
 
 @app.route('/')
 def index():

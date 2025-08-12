@@ -1,0 +1,76 @@
+{
+  "conversion_info": {
+    "total_files": 2,
+    "conversion_date": "2025-08-08",
+    "files": [
+      {
+        "filename": "IND_adm2.geojson",
+        "features_count": 667,
+        "type": "FeatureCollection",
+        "sample_properties": [
+          "ID_0",
+          "ISO",
+          "NAME_0",
+          "ID_1",
+          "NAME_1",
+          "ID_2",
+          "NAME_2",
+          "HASC_2",
+          "CCN_2",
+          "CCA_2",
+          "TYPE_2",
+          "ENGTYPE_2",
+          "NL_NAME_2",
+          "VARNAME_2"
+        ]
+      },
+      {
+        "filename": "IND_WHOLE.geojson",
+        "features_count": 37,
+        "type": "FeatureCollection",
+        "sample_properties": [
+          "ID_0",
+          "ISO",
+          "NAME_0",
+          "ID_1",
+          "NAME_1",
+          "HASC_1",
+          "CCN_1",
+          "CCA_1",
+          "TYPE_1",
+          "ENGTYPE_1",
+          "NL_NAME_1",
+          "VARNAME_1",
+          "NAME",
+          "SCALERANK",
+          "FEATURECLA",
+          "COMMENT",
+          "NAME_GROUP",
+          "NAME_ALT",
+          "OBJECTID",
+          "VertexCou",
+          "VALIDFR_1",
+          "VALIDTO_1",
+          "REMARKS_1",
+          "Region",
+          "RegionVar",
+          "ProvNumber",
+          "NEV_Countr",
+          "FIRST_FIPS",
+          "FIRST_HASC",
+          "FIPS_1",
+          "gadm_level",
+          "CheckMe",
+          "Region_Cod",
+          "Region_C_1",
+          "ScaleRan_1",
+          "Region_C_2",
+          "Region_C_3",
+          "Country_Pr",
+          "Shape_Leng",
+          "Shape_Area"
+        ]
+      }
+    ]
+  }
+}
