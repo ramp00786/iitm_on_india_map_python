@@ -213,7 +213,7 @@ class IndiaInteractiveMap {
             // Ensure map stays within India bounds
             const indiaBounds = L.latLngBounds([6.754, 68.186], [37.042, 97.415]);
             this.map.fitBounds(indiaBounds, {
-                padding: [20, 20] // Add padding for better view
+                padding: [5, 5] // Reduced padding to prevent zoom out
             });
             
             
