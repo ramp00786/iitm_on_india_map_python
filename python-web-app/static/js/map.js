@@ -18,6 +18,15 @@ class IndiaInteractiveMap {
         this.instrumentCount = 0; // Track instrument count
         this.indiaMaskLayer = null;
         
+        // Cache for API responses
+        this.cache = {
+            states: null,
+            districts: null,
+            projects: null,
+            timestamp: null
+        };
+        this.cacheExpiry = 5 * 60 * 1000; // 5 minutes cache
+        
         this.mapStyles = {
             onlyshape: {
                 name: 'Only Shape',
@@ -57,8 +66,28 @@ class IndiaInteractiveMap {
     async init() {
         try {
             this.showLoading();
+            
+            // Initialize map first for instant display
             this.initializeMap();
             this.setupEventListeners();
+            
+            // Hide loading after basic map is ready
+            this.hideLoading();
+            
+            // Load data in background without blocking UI
+            this.loadDataInBackground();
+            
+        } catch (error) {
+            console.error('❌ Error initializing map:', error);
+            this.showError('Failed to initialize map: ' + error.message);
+            this.hideLoading();
+        }
+    }
+    
+    async loadDataInBackground() {
+        try {
+            // Show center loading screen for data loading
+            this.showLoading();
             
             // Load GeoJSON layers and project data in parallel for faster loading
             const [geoJsonResult, projectResult] = await Promise.allSettled([
@@ -76,9 +105,9 @@ class IndiaInteractiveMap {
             
             this.hideLoading();
             this.updateStatistics();
+            
         } catch (error) {
-            console.error('❌ Error initializing map:', error);
-            this.showError('Failed to initialize map: ' + error.message);
+            console.error('❌ Error loading map data:', error);
             this.hideLoading();
         }
     }
@@ -174,6 +203,13 @@ class IndiaInteractiveMap {
     
     async loadGeoJSONLayers() {
         try {
+            // Check cache first
+            if (this.isCacheValid() && this.cache.states && this.cache.districts) {
+                console.log('📦 Using cached GeoJSON data');
+                this.processStatesData(this.cache.states);
+                this.processDistrictsData(this.cache.districts);
+                return;
+            }
             
             // Load states data first for precise masking
             const statesResponse = await fetch('/api/geojson/IND_WHOLE');
@@ -181,41 +217,19 @@ class IndiaInteractiveMap {
                 throw new Error(`Failed to load states data: ${statesResponse.statusText}`);
             }
             const statesData = await statesResponse.json();
-            this.stateCount = statesData.features.length;
-            document.getElementById('state-count').textContent = this.stateCount;
             
-            // Update mask with precise India boundaries
-            this.updateIndiaMaskWithPreciseBoundaries(statesData);
+            // Cache states data
+            this.cache.states = statesData;
+            this.processStatesData(statesData);
             
-            // Load districts data
-            const districtsResponse = await fetch('/api/geojson/IND_adm2');
-            if (!districtsResponse.ok) {
-                throw new Error(`Failed to load districts data: ${districtsResponse.statusText}`);
-            }
-            const districtsData = await districtsResponse.json();
-            this.districtCount = districtsData.features.length;
-            document.getElementById('district-count').textContent = this.districtCount;
-            
-            // Create state layer
-            this.createStateLayer(statesData);
-            
-            // Create district layer
-            this.createDistrictLayer(districtsData);
-            
-            // Add initial layers
-            if (document.getElementById('toggle-states').checked) {
-                this.stateLayer.addTo(this.map);
-            }
-            if (document.getElementById('toggle-districts').checked) {
-                this.districtLayer.addTo(this.map);
+            // Load districts data conditionally (only if districts toggle is checked)
+            const districtsToggle = document.getElementById('toggle-districts');
+            if (districtsToggle && districtsToggle.checked) {
+                await this.loadDistrictsLayer();
             }
             
-            // Ensure map stays within India bounds
-            const indiaBounds = L.latLngBounds([6.754, 68.186], [37.042, 97.415]);
-            this.map.fitBounds(indiaBounds, {
-                padding: [5, 5] // Reduced padding to prevent zoom out
-            });
-            
+            // Update cache timestamp
+            this.cache.timestamp = Date.now();
             
         } catch (error) {
             console.error('❌ Error loading GeoJSON data:', error);
@@ -223,9 +237,72 @@ class IndiaInteractiveMap {
         }
     }
     
+    async loadDistrictsLayer() {
+        // Check cache first
+        if (this.cache.districts) {
+            this.processDistrictsData(this.cache.districts);
+            return;
+        }
+        
+        const districtsResponse = await fetch('/api/geojson/IND_adm2');
+        if (!districtsResponse.ok) {
+            throw new Error(`Failed to load districts data: ${districtsResponse.statusText}`);
+        }
+        const districtsData = await districtsResponse.json();
+        
+        // Cache districts data
+        this.cache.districts = districtsData;
+        this.processDistrictsData(districtsData);
+    }
+    
+    processStatesData(statesData) {
+        this.stateCount = statesData.features.length;
+        document.getElementById('state-count').textContent = this.stateCount;
+        
+        // Update mask with precise India boundaries
+        this.updateIndiaMaskWithPreciseBoundaries(statesData);
+        
+        // Create state layer
+        this.createStateLayer(statesData);
+        
+        // Add initial layers
+        if (document.getElementById('toggle-states').checked) {
+            this.stateLayer.addTo(this.map);
+        }
+    }
+    
+    processDistrictsData(districtsData) {
+        this.districtCount = districtsData.features.length;
+        document.getElementById('district-count').textContent = this.districtCount;
+        
+        // Create district layer
+        this.createDistrictLayer(districtsData);
+        
+        if (document.getElementById('toggle-districts').checked) {
+            this.districtLayer.addTo(this.map);
+        }
+        
+        // Ensure map stays within India bounds
+        const indiaBounds = L.latLngBounds([6.754, 68.186], [37.042, 97.415]);
+        this.map.fitBounds(indiaBounds, {
+            padding: [5, 5] // Reduced padding to prevent zoom out
+        });
+    }
+    
+    isCacheValid() {
+        return this.cache.timestamp && (Date.now() - this.cache.timestamp) < this.cacheExpiry;
+    }
+    
     async loadProjectData() {
         let projectData;
         let dataSource = 'unknown';
+        
+        // Check cache first
+        if (this.isCacheValid() && this.cache.projects) {
+            console.log('📦 Using cached project data');
+            this.processProjectData(this.cache.projects);
+            return;
+        }
         
         try {
             console.log('🔄 Attempting to load project data from API...');
@@ -258,6 +335,17 @@ class IndiaInteractiveMap {
                 throw new Error(`Failed to load project data from both API and fallback endpoint`);
             }
         }
+        
+        // Cache project data
+        this.cache.projects = { data: projectData, source: dataSource };
+        this.cache.timestamp = Date.now();
+        
+        this.processProjectData({ data: projectData, source: dataSource });
+    }
+    
+    processProjectData(cachedData) {
+        const projectData = cachedData.data;
+        const dataSource = cachedData.source;
         
         // Update data source indicator
         this.updateDataSourceIndicator(dataSource);
@@ -2216,10 +2304,24 @@ class IndiaInteractiveMap {
             } else {
                 this.map.removeLayer(this.stateLayer);
             }
-        } else if (layerName === 'districts' && this.districtLayer) {
+        } else if (layerName === 'districts') {
             if (isVisible) {
-                this.districtLayer.addTo(this.map);
-            } else {
+                if (!this.districtLayer) {
+                    // Show center loading for districts lazy loading
+                    this.showLoading();
+                    this.loadDistrictsLayer().then(() => {
+                        this.hideLoading();
+                        if (this.districtLayer) {
+                            this.districtLayer.addTo(this.map);
+                        }
+                    }).catch((error) => {
+                        console.error('Failed to load districts:', error);
+                        this.hideLoading();
+                    });
+                } else {
+                    this.districtLayer.addTo(this.map);
+                }
+            } else if (this.districtLayer) {
                 this.map.removeLayer(this.districtLayer);
             }
         } else if (layerName === 'sites' && this.sitesLayer) {
@@ -2335,6 +2437,50 @@ class IndiaInteractiveMap {
     
     hideLoading() {
         document.getElementById('loading-indicator').style.display = 'none';
+    }
+    
+    showProgressIndicator() {
+        // Create or show a subtle progress indicator
+        let indicator = document.getElementById('progress-indicator');
+        if (!indicator) {
+            indicator = document.createElement('div');
+            indicator.id = 'progress-indicator';
+            indicator.innerHTML = `
+                <div style="
+                    position: absolute;
+                    top: 10px;
+                    right: 10px;
+                    background: rgba(0,0,0,0.7);
+                    color: white;
+                    padding: 8px 16px;
+                    border-radius: 20px;
+                    font-size: 12px;
+                    z-index: 2000;
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                ">
+                    <div class="mini-spinner" style="
+                        width: 16px;
+                        height: 16px;
+                        border: 2px solid rgba(255,255,255,0.3);
+                        border-top: 2px solid white;
+                        border-radius: 50%;
+                        animation: spin 1s linear infinite;
+                    "></div>
+                    Loading data...
+                </div>
+            `;
+            document.body.appendChild(indicator);
+        }
+        indicator.style.display = 'block';
+    }
+    
+    hideProgressIndicator() {
+        const indicator = document.getElementById('progress-indicator');
+        if (indicator) {
+            indicator.style.display = 'none';
+        }
     }
     
     showError(message) {
